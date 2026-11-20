@@ -76,4 +76,1018 @@ function beep(){try{let a=new AudioContext(),o=a.createOscillator(),g=a.createGa
 document.getElementById("reset").onclick=reset;document.getElementById("undo").onclick=()=>{if(history.length){restore(history.pop());records.pop();selected=null;render();status();if(computer&&turn==="w"&&history.length) {}}};document.getElementById("mode").onchange=e=>{computer=e.target.value==="cpu";reset()};document.getElementById("sound").onclick=e=>{sound=!sound;e.target.textContent="Sound: "+(sound?"on":"off")};document.getElementById("flip").onclick=()=>{flip=!flip;render()};reset();
 let deferredInstall;window.addEventListener("beforeinstallprompt",e=>{e.preventDefault();deferredInstall=e;document.getElementById("install").hidden=false});document.getElementById("install").onclick=async()=>{if(deferredInstall){deferredInstall.prompt();await deferredInstall.userChoice;deferredInstall=null}};
 if("serviceWorker" in navigator)navigator.serviceWorker.register("./sw.js");
+</script></body></html><!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#24170f"><link rel="manifest" href="manifest.json"><title>Ancient Armies Chess II</title>
+<style>
+:root{--bg:#17130f;--panel:#292017;--gold:#c9a56b;--cream:#f0dfbd;--dark:#543b27;--light:#d9bb87;--accent:#8e3325}
+*{box-sizing:border-box}body{margin:0;background:radial-gradient(ellipse at top,#3b2b1b,#17130f 70%);color:var(--cream);font-family:system-ui,serif;min-height:100vh}
+main{max-width:1050px;margin:auto;padding:18px}.top{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}.brand h1{margin:0;color:var(--gold);letter-spacing:.08em;font-family:Georgia,serif}.brand p{margin:4px 0 12px;color:#b9a58a}
+.controls{display:flex;gap:8px;flex-wrap:wrap}.btn,select{background:#3a2a1c;color:var(--cream);border:1px solid #927347;border-radius:9px;padding:9px 12px;font-size:15px}.btn:hover{background:#57402b}.layout{display:grid;grid-template-columns:minmax(280px,680px) minmax(220px,1fr);gap:18px;margin-top:12px}.boardwrap{background:#211910;border:2px solid #9d7b47;padding:8px;border-radius:14px;box-shadow:0 12px 35px #0008}.board{display:grid;grid-template-columns:repeat(8,1fr;)}.board{grid-template-columns:repeat(8,1fr);aspect-ratio:1;overflow:hidden;border-radius:7px}
+.sq{position:relative;border:0;padding:0;aspect-ratio:1;display:grid;place-items:center;cursor:pointer;font-size:clamp(24px,6.7vw,64px);line-height:1}.sq.light{background:var(--light)}.sq.dark{background:var(--dark)}.sq.selected{box-shadow:inset 0 0 0 5px #e6c64e}.sq.target:after{content:"";position:absolute;width:23%;height:23%;border-radius:50%;background:#285c36aa}.sq.capture:after{content:"";position:absolute;inset:4px;border:4px solid #8e3325b9;border-radius:50%}.piece{filter:drop-shadow(1px 3px 1px #0007);transition:transform .15s}.sq:hover .piece{transform:translateY(-3px)}.white{color:#f8ebd2;text-shadow:0 2px 3px #352311,0 0 1px #111}.black{color:#21150d;text-shadow:0 1px 1px #d6b989}.coords{position:absolute;left:3px;top:2px;font-size:10px;color:#402e1d;opacity:.8}
+.sidebar{display:flex;flex-direction:column;gap:10px}.card{background:linear-gradient(135deg,#342519,#251a12);border:1px solid #715531;border-radius:12px;padding:13px}.card h2{font-size:17px;margin:0 0 9px;color:var(--gold)}#status{font-size:17px;min-height:28px}.history{max-height:260px;overflow:auto;white-space:pre-wrap;font-family:monospace;font-size:14px;color:#dfc9a6}.help{color:#b9a58a;font-size:13px;line-height:1.5}.row{display:flex;gap:7px;flex-wrap:wrap}.row button{flex:1}.foot{color:#8f7b62;text-align:center;font-size:12px;margin:12px}
+@keyframes battle{0%{transform:scale(1.1);filter:brightness(1.8)}100%{transform:scale(1);filter:brightness(1)}}.recent .piece{animation:battle .25s ease}
+@media(max-width:760px){main{padding:10px}.layout{grid-template-columns:1fr}.sidebar{display:grid;grid-template-columns:1fr 1fr}.historycard{grid-column:1/-1}.sq{font-size:clamp(27px,10vw,54px)}}
+
+/* Ancient Armies II battlefield upgrade */
+body{background:radial-gradient(ellipse at 50% 0%,#65472c 0,#2b1b10 42%,#100c09 100%)}
+.boardwrap{border:3px ridge #b58b4f;background:linear-gradient(135deg,#68472c,#25180f 30%,#6a492c);box-shadow:0 16px 38px #000a,inset 0 0 0 2px #24160d}
+.sq.light{background:linear-gradient(135deg,#ead8b3,#bd9862)}
+.sq.dark{background:linear-gradient(135deg,#69472d,#382316)}
+.sq{overflow:hidden}
+.sq .piece{filter:drop-shadow(1px 4px 2px #0009);transition:transform .18s,filter .18s}
+.sq:hover .piece{transform:translateY(-4px) scale(1.04);filter:drop-shadow(2px 7px 3px #000a)}
+@keyframes army-march{0%{transform:scale(.55) translateY(-15px);opacity:.25}70%{transform:scale(1.12)}100%{transform:scale(1);opacity:1}}
+@keyframes battle-strike{0%{filter:brightness(2.2);transform:scale(1.25)}100%{filter:brightness(1);transform:scale(1)}}
+.sq:has(circle[stroke="#166534"]) .piece{animation:army-march .25s ease-out}
+.card{background:linear-gradient(145deg,#3b281a,#21160f);border-color:#80603a;box-shadow:0 8px 20px #0005}
+.brand h1{color:#d4ad68;text-shadow:0 3px 8px #000;letter-spacing:.09em}
+.btn{background:linear-gradient(#543a25,#2d1d12);border-color:#a37d45}
+</style></head><body><main>
+<div class="top"><div class="brand"><h1>⚔ ANCIENT ARMIES II</h1><p>Command the legions. Claim the field.</p></div><div class="controls"><select id="mode"><option value="human">Two commanders</option><option value="cpu">Battle the computer</option></select><button class="btn" id="undo">↶ Undo</button><button class="btn" id="reset">⟲ New battle</button><button class="btn" id="install" hidden>⬇ Install</button></div></div>
+<div class="layout"><div class="boardwrap"><div id="board" class="board" aria-label="Chess board"></div></div><aside class="sidebar">
+<div class="card"><h2>Battle status</h2><div id="status">White to move</div></div>
+<div class="card"><h2>Army legend</h2><div class="help">♔ / ♚ Commander · ♕ / ♛ Queen<br>♖ / ♜ Fortress · ♗ / ♝ Sage<br>♘ / ♞ Cavalry · ♙ / ♟ Infantry</div></div>
+<div class="card historycard"><h2>Battle record</h2><div id="history" class="history">The armies await your command.</div></div>
+<div class="card"><h2>Controls</h2><div class="help">Select a piece, then a highlighted square. Tap a pawn on its final rank to promote. Undo rewinds one move. Sound can be toggled.</div><div class="row"><button class="btn" id="sound">Sound: off</button><button class="btn" id="flip">Flip board</button></div></div></aside></div>
+<div class="foot">Offline-ready web app · Install from Chrome's address bar/menu when hosted securely</div></main>
+<script>
+const glyph={K:"♔",Q:"♕",R:"♖",B:"♗",N:"♘",P:"♙",k:"♚",q:"♛",r:"♜",b:"♝",n:"♞",p:"♟"};
+let board=[],turn="w",rights="KQkq",ep=null,half=0,full=1,selected=null,targets=[],history=[],records=[],flip=false,sound=false,computer=false;
+const initial="rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR";
+function reset(){board=initial.split("/").flatMap(row=>{let out=[];for(const c of row){if(+c)out.push(...Array(+c).fill(null));else out.push(c)}return out});turn="w";rights="KQkq";ep=null;half=0;full=1;selected=null;targets=[];history=[];records=[];render();status();}
+function sqName(i){return "abcdefgh"[i%8]+(8-Math.floor(i/8))}
+function index(s){return (8-+s[1])*8+"abcdefgh".indexOf(s[0])}
+function color(p){return p?(p===p.toUpperCase()?"w":"b"):null}
+function clone(){return {b:board.slice(),t:turn,r:rights,e:ep,h:half,f:full}}
+function restore(s){board=s.b.slice();turn=s.t;rights=s.r;ep=s.e;half=s.h;full=s.f}
+function attacked(b,idx,by){
+ const f=idx%8,r=Math.floor(idx/8);
+ for(let rr=0;rr<8;rr++)for(let ff=0;ff<8;ff++){let p=b[rr*8+ff];if(!p||color(p)!==by)continue;let typ=p.toLowerCase(),dr=r-rr,df=f-ff;
+ if(typ==="p"&&dr===(by==="w"?-1:1)&&Math.abs(df)===1)return true;
+ if(typ==="n"&&((Math.abs(dr)===2&&Math.abs(df)===1)||(Math.abs(dr)===1&&Math.abs(df)===2)))return true;
+ if(typ==="k"&&Math.max(Math.abs(dr),Math.abs(df))===1)return true;
+ if(["b","r","q"].includes(typ)){let diagonal=Math.abs(dr)===Math.abs(df),straight=dr===0||df===0;if((typ==="b"&&!diagonal)||(typ==="r"&&!straight)||(typ==="q"&&!(diagonal||straight))||(!dr&&!df))continue;let sr=Math.sign(dr),sf=Math.sign(df),y=rr+sr,x=ff+sf,blocked=false;while(y!==r||x!==f){if(b[y*8+x]){blocked=true;break}y+=sr;x+=sf}if(!blocked)return true}
+ }return false
+}
+function king(b,c){return b.findIndex(p=>p===(c==="w"?"K":"k"))}
+function inCheck(b,c){return attacked(b,king(b,c),c==="w"?"b":"w")}
+function pseudo(s){let out=[],b=s.b,c=s.t;const add=(from,to,prom=null,extra={})=>{if(b[to]&&color(b[to])===c)return;if(b[to]&&b[to].toLowerCase()==="k")return;out.push({from,to,prom,...extra})};
+ for(let i=0;i<64;i++){let p=b[i];if(!p||color(p)!==c)continue;let typ=p.toLowerCase(),r=i>>3,f=i%8;
+ if(typ==="p"){let d=c==="w"?-1:1,rr=r+d;if(rr>=0&&rr<8&&!b[rr*8+f]){if(rr===0||rr===7){for(let q of "qrbn")add(i,rr*8+f,q)}else add(i,rr*8+f);let start=c==="w"?6:1,rr2=r+2*d;if(r===start&&!b[rr2*8+f])add(i,rr2*8+f,null,{double:true})}
+ for(let df of [-1,1]){let nf=f+df,nr=r+d;if(nf<0||nf>7||nr<0||nr>7)continue;let dest=nr*8+nf;if(b[dest]&&color(b[dest])!==c){if(nr===0||nr===7){for(let q of "qrbn")add(i,dest,q)}else add(i,dest)}else if(dest===s.e)add(i,dest,null,{ep:true})}
+ }else{let steps=typ==="n"?[[2,1],[2,-1],[-2,1],[-2,-1],[1,2],[1,-2],[-1,2],[-1,-2]]:typ==="k"?[[1,0],[-1,0],[0,1],[0,-1],[1,1],[1,-1],[-1,1],[-1,-1]]:typ==="b"?[[1,1],[1,-1],[-1,1],[-1,-1]]:typ==="r"?[[1,0],[-1,0],[0,1],[0,-1]]:[[1,0],[-1,0],[0,1],[0,-1],[1,1],[1,-1],[-1,1],[-1,-1]];
+ for(let [dr,df] of steps){let nr=r+dr,nf=f+df;while(nr>=0&&nr<8&&nf>=0&&nf<8){add(i,nr*8+nf);if(typ==="k"||typ==="n"||b[nr*8+nf])break;nr+=dr;nf+=df}}
+ if(typ==="k"&&r===(c==="w"?7:0)&&f===4&&!inCheck(b,c)){let enemy=c==="w"?"b":"w";if(s.r.includes(c==="w"?"K":"k")&&!b[i+1]&&!b[i+2]&&b[i+3]===(c==="w"?"R":"r")&&!attacked(b,i+1,enemy)&&!attacked(b,i+2,enemy))add(i,i+2,null,{castle:"k"});if(s.r.includes(c==="w"?"Q":"q")&&!b[i-1]&&!b[i-2]&&!b[i-3]&&b[i-4]===(c==="w"?"R":"r")&&!attacked(b,i-1,enemy)&&!attacked(b,i-2,enemy))add(i,i-2,null,{castle:"q"})}
+ }}
+ return out}
+function legal(s){return pseudo(s).filter(m=>{let b=s.b.slice(),p=b[m.from];b[m.to]=m.prom?(s.t==="w"?m.prom.toUpperCase():m.prom):p;b[m.from]=null;if(m.ep)b[m.to+(s.t==="w"?8:-8)]=null;if(m.castle){let rr=m.from>>3,rookfrom=m.castle==="k"?m.from+3:m.from-4,rookto=m.castle==="k"?m.from+1:m.from-1;b[rookto]=b[rookfrom];b[rookfrom]=null}return !inCheck(b,s.t)})}
+function make(m){let prev=clone(),p=board[m.from],cap=board[m.to];history.push(prev);board[m.to]=m.prom?(turn==="w"?m.prom.toUpperCase():m.prom):p;board[m.from]=null;if(m.ep){board[m.to+(turn==="w"?8:-8)]=null;cap=turn==="w"?"p":"P"}if(m.castle){let rf=m.castle==="k"?m.from+3:m.from-4,rt=m.castle==="k"?m.from+1:m.from-1;board[rt]=board[rf];board[rf]=null}
+ if(p==="K")rights=rights.replace(/[KQ]/g,"");if(p==="k")rights=rights.replace(/[kq]/g,"");const rookRights={63:"K",56:"Q",7:"k",0:"q"};if(p.toLowerCase()==="r")rights=rights.replace(rookRights[m.from]||"","");if(cap&&cap.toLowerCase()==="r")rights=rights.replace(rookRights[m.to]||"","");ep=m.double?((m.from+m.to)/2):null;half=p.toLowerCase()==="p"||cap?0:half+1;if(turn==="b")full++;turn=turn==="w"?"b":"w";records.push((full-(turn==="w"?1:0))+(prev.t==="w"?". ":"... ")+notation(prev,m));selected=null;targets=[];render();status();if(sound)beep();if(computer&&turn==="b"&&!terminal())setTimeout(cpuMove,450)}
+function notation(s,m){let p=s.b[m.from],cap=s.b[m.to]||m.ep,txt=m.castle?(m.castle==="k"?"O-O":"O-O-O"):(p.toLowerCase()==="p"?(cap?sqName(m.from)[0]+"x":"")+sqName(m.to):p.toUpperCase()+(cap?"x":"")+sqName(m.to))+(m.prom?"="+m.prom.toUpperCase():"");let next=clone(),moves=legal(next);if(inCheck(board,turn))txt+=moves.length?" +":" #";return txt}
+function terminal(){let ms=legal(clone());return ms.length===0||half>=100}
+function status(){let ms=legal(clone()),check=inCheck(board,turn),txt;if(!ms.length)txt=check?"CHECKMATE — "+(turn==="w"?"Black":"White")+" wins!":"Draw — stalemate";else if(half>=100)txt="Draw claim available — 50 move rule";else txt=(turn==="w"?"White":"Black")+" to move"+(check?" — CHECK":"");document.getElementById("status").textContent=txt;document.getElementById("history").textContent=records.length?records.join("  "):"The armies await your command."}
+function render(){let el=document.getElementById("board");el.innerHTML="";let moves=selected===null?[]:legal(clone()).filter(m=>m.from===selected);targets=moves.map(m=>m.to);for(let n=0;n<64;n++){let i=flip?63-n:n,cell=document.createElement("button");cell.className="sq "+(((i>>3)+(i&7))%2?"dark":"light");if(i===selected)cell.classList.add("selected");if(targets.includes(i))cell.classList.add(board[i]?"capture":"target");let p=board[i];if(p){let sp=document.createElement("span");sp.className="piece "+(color(p)==="w"?"white":"black");sp.textContent=glyph[p];cell.append(sp)}let co=document.createElement("span");co.className="coords";co.textContent=(i%8===0?8-(i>>3):"")+(i>>3===7?"abcdefgh"[i%8]:"");cell.append(co);cell.onclick=()=>click(i);el.append(cell)}}
+function click(i){if(computer&&turn==="b")return;let ms=legal(clone());if(selected!==null){let opts=ms.filter(m=>m.from===selected&&m.to===i);if(opts.length){let m=opts[0];if(opts.length>1){let choice=prompt("Promote to: Q, R, B, or N","Q");m=opts.find(x=>x.prom===(choice||"Q").toLowerCase())||opts[0]}make(m);return}}
+ if(board[i]&&color(board[i])===turn){selected=i;render()}else{selected=null;render()}}
+function cpuMove(){if(turn!=="b"||!computer)return;let ms=legal(clone());if(!ms.length)return;let scored=ms.map(m=>({m,s:(board[m.to]?({p:1,n:3,b:3,r:5,q:9,k:99}[board[m.to].toLowerCase()]||0):0)+(m.prom?8:0)+Math.random()*1.8})).sort((a,b)=>b.s-a.s);make(scored[0].m)}
+function beep(){try{let a=new AudioContext(),o=a.createOscillator(),g=a.createGain();o.connect(g);g.connect(a.destination);o.frequency.value=220;g.gain.value=.04;o.start();o.stop(a.currentTime+.06)}catch{}}
+document.getElementById("reset").onclick=reset;document.getElementById("undo").onclick=()=>{if(history.length){restore(history.pop());records.pop();selected=null;render();status();if(computer&&turn==="w"&&history.length) {}}};document.getElementById("mode").onchange=e=>{computer=e.target.value==="cpu";reset()};document.getElementById("sound").onclick=e=>{sound=!sound;e.target.textContent="Sound: "+(sound?"on":"off")};document.getElementById("flip").onclick=()=>{flip=!flip;render()};reset();
+let deferredInstall;window.addEventListener("beforeinstallprompt",e=>{e.preventDefault();deferredInstall=e;document.getElementById("install").hidden=false});document.getElementById("install").onclick=async()=>{if(deferredInstall){deferredInstall.prompt();await deferredInstall.userChoice;deferredInstall=null}};
+if("serviceWorker" in navigator)navigator.serviceWorker.register("./sw.js");
+</script></body></html><!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#24170f"><link rel="manifest" href="manifest.json"><title>Ancient Armies Chess II</title>
+<style>
+:root{--bg:#17130f;--panel:#292017;--gold:#c9a56b;--cream:#f0dfbd;--dark:#543b27;--light:#d9bb87;--accent:#8e3325}
+*{box-sizing:border-box}body{margin:0;background:radial-gradient(ellipse at top,#3b2b1b,#17130f 70%);color:var(--cream);font-family:system-ui,serif;min-height:100vh}
+main{max-width:1050px;margin:auto;padding:18px}.top{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}.brand h1{margin:0;color:var(--gold);letter-spacing:.08em;font-family:Georgia,serif}.brand p{margin:4px 0 12px;color:#b9a58a}
+.controls{display:flex;gap:8px;flex-wrap:wrap}.btn,select{background:#3a2a1c;color:var(--cream);border:1px solid #927347;border-radius:9px;padding:9px 12px;font-size:15px}.btn:hover{background:#57402b}.layout{display:grid;grid-template-columns:minmax(280px,680px) minmax(220px,1fr);gap:18px;margin-top:12px}.boardwrap{background:#211910;border:2px solid #9d7b47;padding:8px;border-radius:14px;box-shadow:0 12px 35px #0008}.board{display:grid;grid-template-columns:repeat(8,1fr;)}.board{grid-template-columns:repeat(8,1fr);aspect-ratio:1;overflow:hidden;border-radius:7px}
+.sq{position:relative;border:0;padding:0;aspect-ratio:1;display:grid;place-items:center;cursor:pointer;font-size:clamp(24px,6.7vw,64px);line-height:1}.sq.light{background:var(--light)}.sq.dark{background:var(--dark)}.sq.selected{box-shadow:inset 0 0 0 5px #e6c64e}.sq.target:after{content:"";position:absolute;width:23%;height:23%;border-radius:50%;background:#285c36aa}.sq.capture:after{content:"";position:absolute;inset:4px;border:4px solid #8e3325b9;border-radius:50%}.piece{filter:drop-shadow(1px 3px 1px #0007);transition:transform .15s}.sq:hover .piece{transform:translateY(-3px)}.white{color:#f8ebd2;text-shadow:0 2px 3px #352311,0 0 1px #111}.black{color:#21150d;text-shadow:0 1px 1px #d6b989}.coords{position:absolute;left:3px;top:2px;font-size:10px;color:#402e1d;opacity:.8}
+.sidebar{display:flex;flex-direction:column;gap:10px}.card{background:linear-gradient(135deg,#342519,#251a12);border:1px solid #715531;border-radius:12px;padding:13px}.card h2{font-size:17px;margin:0 0 9px;color:var(--gold)}#status{font-size:17px;min-height:28px}.history{max-height:260px;overflow:auto;white-space:pre-wrap;font-family:monospace;font-size:14px;color:#dfc9a6}.help{color:#b9a58a;font-size:13px;line-height:1.5}.row{display:flex;gap:7px;flex-wrap:wrap}.row button{flex:1}.foot{color:#8f7b62;text-align:center;font-size:12px;margin:12px}
+@keyframes battle{0%{transform:scale(1.1);filter:brightness(1.8)}100%{transform:scale(1);filter:brightness(1)}}.recent .piece{animation:battle .25s ease}
+@media(max-width:760px){main{padding:10px}.layout{grid-template-columns:1fr}.sidebar{display:grid;grid-template-columns:1fr 1fr}.historycard{grid-column:1/-1}.sq{font-size:clamp(27px,10vw,54px)}}
+
+/* Ancient Armies II battlefield upgrade */
+body{background:radial-gradient(ellipse at 50% 0%,#65472c 0,#2b1b10 42%,#100c09 100%)}
+.boardwrap{border:3px ridge #b58b4f;background:linear-gradient(135deg,#68472c,#25180f 30%,#6a492c);box-shadow:0 16px 38px #000a,inset 0 0 0 2px #24160d}
+.sq.light{background:linear-gradient(135deg,#ead8b3,#bd9862)}
+.sq.dark{background:linear-gradient(135deg,#69472d,#382316)}
+.sq{overflow:hidden}
+.sq .piece{filter:drop-shadow(1px 4px 2px #0009);transition:transform .18s,filter .18s}
+.sq:hover .piece{transform:translateY(-4px) scale(1.04);filter:drop-shadow(2px 7px 3px #000a)}
+@keyframes army-march{0%{transform:scale(.55) translateY(-15px);opacity:.25}70%{transform:scale(1.12)}100%{transform:scale(1);opacity:1}}
+@keyframes battle-strike{0%{filter:brightness(2.2);transform:scale(1.25)}100%{filter:brightness(1);transform:scale(1)}}
+.sq:has(circle[stroke="#166534"]) .piece{animation:army-march .25s ease-out}
+.card{background:linear-gradient(145deg,#3b281a,#21160f);border-color:#80603a;box-shadow:0 8px 20px #0005}
+.brand h1{color:#d4ad68;text-shadow:0 3px 8px #000;letter-spacing:.09em}
+.btn{background:linear-gradient(#543a25,#2d1d12);border-color:#a37d45}
+</style></head><body><main>
+<div class="top"><div class="brand"><h1>⚔ ANCIENT ARMIES II</h1><p>Command the legions. Claim the field.</p></div><div class="controls"><select id="mode"><option value="human">Two commanders</option><option value="cpu">Battle the computer</option></select><button class="btn" id="undo">↶ Undo</button><button class="btn" id="reset">⟲ New battle</button><button class="btn" id="install" hidden>⬇ Install</button></div></div>
+<div class="layout"><div class="boardwrap"><div id="board" class="board" aria-label="Chess board"></div></div><aside class="sidebar">
+<div class="card"><h2>Battle status</h2><div id="status">White to move</div></div>
+<div class="card"><h2>Army legend</h2><div class="help">♔ / ♚ Commander · ♕ / ♛ Queen<br>♖ / ♜ Fortress · ♗ / ♝ Sage<br>♘ / ♞ Cavalry · ♙ / ♟ Infantry</div></div>
+<div class="card historycard"><h2>Battle record</h2><div id="history" class="history">The armies await your command.</div></div>
+<div class="card"><h2>Controls</h2><div class="help">Select a piece, then a highlighted square. Tap a pawn on its final rank to promote. Undo rewinds one move. Sound can be toggled.</div><div class="row"><button class="btn" id="sound">Sound: off</button><button class="btn" id="flip">Flip board</button></div></div></aside></div>
+<div class="foot">Offline-ready web app · Install from Chrome's address bar/menu when hosted securely</div></main>
+<script>
+const glyph={K:"♔",Q:"♕",R:"♖",B:"♗",N:"♘",P:"♙",k:"♚",q:"♛",r:"♜",b:"♝",n:"♞",p:"♟"};
+let board=[],turn="w",rights="KQkq",ep=null,half=0,full=1,selected=null,targets=[],history=[],records=[],flip=false,sound=false,computer=false;
+const initial="rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR";
+function reset(){board=initial.split("/").flatMap(row=>{let out=[];for(const c of row){if(+c)out.push(...Array(+c).fill(null));else out.push(c)}return out});turn="w";rights="KQkq";ep=null;half=0;full=1;selected=null;targets=[];history=[];records=[];render();status();}
+function sqName(i){return "abcdefgh"[i%8]+(8-Math.floor(i/8))}
+function index(s){return (8-+s[1])*8+"abcdefgh".indexOf(s[0])}
+function color(p){return p?(p===p.toUpperCase()?"w":"b"):null}
+function clone(){return {b:board.slice(),t:turn,r:rights,e:ep,h:half,f:full}}
+function restore(s){board=s.b.slice();turn=s.t;rights=s.r;ep=s.e;half=s.h;full=s.f}
+function attacked(b,idx,by){
+ const f=idx%8,r=Math.floor(idx/8);
+ for(let rr=0;rr<8;rr++)for(let ff=0;ff<8;ff++){let p=b[rr*8+ff];if(!p||color(p)!==by)continue;let typ=p.toLowerCase(),dr=r-rr,df=f-ff;
+ if(typ==="p"&&dr===(by==="w"?-1:1)&&Math.abs(df)===1)return true;
+ if(typ==="n"&&((Math.abs(dr)===2&&Math.abs(df)===1)||(Math.abs(dr)===1&&Math.abs(df)===2)))return true;
+ if(typ==="k"&&Math.max(Math.abs(dr),Math.abs(df))===1)return true;
+ if(["b","r","q"].includes(typ)){let diagonal=Math.abs(dr)===Math.abs(df),straight=dr===0||df===0;if((typ==="b"&&!diagonal)||(typ==="r"&&!straight)||(typ==="q"&&!(diagonal||straight))||(!dr&&!df))continue;let sr=Math.sign(dr),sf=Math.sign(df),y=rr+sr,x=ff+sf,blocked=false;while(y!==r||x!==f){if(b[y*8+x]){blocked=true;break}y+=sr;x+=sf}if(!blocked)return true}
+ }return false
+}
+function king(b,c){return b.findIndex(p=>p===(c==="w"?"K":"k"))}
+function inCheck(b,c){return attacked(b,king(b,c),c==="w"?"b":"w")}
+function pseudo(s){let out=[],b=s.b,c=s.t;const add=(from,to,prom=null,extra={})=>{if(b[to]&&color(b[to])===c)return;if(b[to]&&b[to].toLowerCase()==="k")return;out.push({from,to,prom,...extra})};
+ for(let i=0;i<64;i++){let p=b[i];if(!p||color(p)!==c)continue;let typ=p.toLowerCase(),r=i>>3,f=i%8;
+ if(typ==="p"){let d=c==="w"?-1:1,rr=r+d;if(rr>=0&&rr<8&&!b[rr*8+f]){if(rr===0||rr===7){for(let q of "qrbn")add(i,rr*8+f,q)}else add(i,rr*8+f);let start=c==="w"?6:1,rr2=r+2*d;if(r===start&&!b[rr2*8+f])add(i,rr2*8+f,null,{double:true})}
+ for(let df of [-1,1]){let nf=f+df,nr=r+d;if(nf<0||nf>7||nr<0||nr>7)continue;let dest=nr*8+nf;if(b[dest]&&color(b[dest])!==c){if(nr===0||nr===7){for(let q of "qrbn")add(i,dest,q)}else add(i,dest)}else if(dest===s.e)add(i,dest,null,{ep:true})}
+ }else{let steps=typ==="n"?[[2,1],[2,-1],[-2,1],[-2,-1],[1,2],[1,-2],[-1,2],[-1,-2]]:typ==="k"?[[1,0],[-1,0],[0,1],[0,-1],[1,1],[1,-1],[-1,1],[-1,-1]]:typ==="b"?[[1,1],[1,-1],[-1,1],[-1,-1]]:typ==="r"?[[1,0],[-1,0],[0,1],[0,-1]]:[[1,0],[-1,0],[0,1],[0,-1],[1,1],[1,-1],[-1,1],[-1,-1]];
+ for(let [dr,df] of steps){let nr=r+dr,nf=f+df;while(nr>=0&&nr<8&&nf>=0&&nf<8){add(i,nr*8+nf);if(typ==="k"||typ==="n"||b[nr*8+nf])break;nr+=dr;nf+=df}}
+ if(typ==="k"&&r===(c==="w"?7:0)&&f===4&&!inCheck(b,c)){let enemy=c==="w"?"b":"w";if(s.r.includes(c==="w"?"K":"k")&&!b[i+1]&&!b[i+2]&&b[i+3]===(c==="w"?"R":"r")&&!attacked(b,i+1,enemy)&&!attacked(b,i+2,enemy))add(i,i+2,null,{castle:"k"});if(s.r.includes(c==="w"?"Q":"q")&&!b[i-1]&&!b[i-2]&&!b[i-3]&&b[i-4]===(c==="w"?"R":"r")&&!attacked(b,i-1,enemy)&&!attacked(b,i-2,enemy))add(i,i-2,null,{castle:"q"})}
+ }}
+ return out}
+function legal(s){return pseudo(s).filter(m=>{let b=s.b.slice(),p=b[m.from];b[m.to]=m.prom?(s.t==="w"?m.prom.toUpperCase():m.prom):p;b[m.from]=null;if(m.ep)b[m.to+(s.t==="w"?8:-8)]=null;if(m.castle){let rr=m.from>>3,rookfrom=m.castle==="k"?m.from+3:m.from-4,rookto=m.castle==="k"?m.from+1:m.from-1;b[rookto]=b[rookfrom];b[rookfrom]=null}return !inCheck(b,s.t)})}
+function make(m){let prev=clone(),p=board[m.from],cap=board[m.to];history.push(prev);board[m.to]=m.prom?(turn==="w"?m.prom.toUpperCase():m.prom):p;board[m.from]=null;if(m.ep){board[m.to+(turn==="w"?8:-8)]=null;cap=turn==="w"?"p":"P"}if(m.castle){let rf=m.castle==="k"?m.from+3:m.from-4,rt=m.castle==="k"?m.from+1:m.from-1;board[rt]=board[rf];board[rf]=null}
+ if(p==="K")rights=rights.replace(/[KQ]/g,"");if(p==="k")rights=rights.replace(/[kq]/g,"");const rookRights={63:"K",56:"Q",7:"k",0:"q"};if(p.toLowerCase()==="r")rights=rights.replace(rookRights[m.from]||"","");if(cap&&cap.toLowerCase()==="r")rights=rights.replace(rookRights[m.to]||"","");ep=m.double?((m.from+m.to)/2):null;half=p.toLowerCase()==="p"||cap?0:half+1;if(turn==="b")full++;turn=turn==="w"?"b":"w";records.push((full-(turn==="w"?1:0))+(prev.t==="w"?". ":"... ")+notation(prev,m));selected=null;targets=[];render();status();if(sound)beep();if(computer&&turn==="b"&&!terminal())setTimeout(cpuMove,450)}
+function notation(s,m){let p=s.b[m.from],cap=s.b[m.to]||m.ep,txt=m.castle?(m.castle==="k"?"O-O":"O-O-O"):(p.toLowerCase()==="p"?(cap?sqName(m.from)[0]+"x":"")+sqName(m.to):p.toUpperCase()+(cap?"x":"")+sqName(m.to))+(m.prom?"="+m.prom.toUpperCase():"");let next=clone(),moves=legal(next);if(inCheck(board,turn))txt+=moves.length?" +":" #";return txt}
+function terminal(){let ms=legal(clone());return ms.length===0||half>=100}
+function status(){let ms=legal(clone()),check=inCheck(board,turn),txt;if(!ms.length)txt=check?"CHECKMATE — "+(turn==="w"?"Black":"White")+" wins!":"Draw — stalemate";else if(half>=100)txt="Draw claim available — 50 move rule";else txt=(turn==="w"?"White":"Black")+" to move"+(check?" — CHECK":"");document.getElementById("status").textContent=txt;document.getElementById("history").textContent=records.length?records.join("  "):"The armies await your command."}
+function render(){let el=document.getElementById("board");el.innerHTML="";let moves=selected===null?[]:legal(clone()).filter(m=>m.from===selected);targets=moves.map(m=>m.to);for(let n=0;n<64;n++){let i=flip?63-n:n,cell=document.createElement("button");cell.className="sq "+(((i>>3)+(i&7))%2?"dark":"light");if(i===selected)cell.classList.add("selected");if(targets.includes(i))cell.classList.add(board[i]?"capture":"target");let p=board[i];if(p){let sp=document.createElement("span");sp.className="piece "+(color(p)==="w"?"white":"black");sp.textContent=glyph[p];cell.append(sp)}let co=document.createElement("span");co.className="coords";co.textContent=(i%8===0?8-(i>>3):"")+(i>>3===7?"abcdefgh"[i%8]:"");cell.append(co);cell.onclick=()=>click(i);el.append(cell)}}
+function click(i){if(computer&&turn==="b")return;let ms=legal(clone());if(selected!==null){let opts=ms.filter(m=>m.from===selected&&m.to===i);if(opts.length){let m=opts[0];if(opts.length>1){let choice=prompt("Promote to: Q, R, B, or N","Q");m=opts.find(x=>x.prom===(choice||"Q").toLowerCase())||opts[0]}make(m);return}}
+ if(board[i]&&color(board[i])===turn){selected=i;render()}else{selected=null;render()}}
+function cpuMove(){if(turn!=="b"||!computer)return;let ms=legal(clone());if(!ms.length)return;let scored=ms.map(m=>({m,s:(board[m.to]?({p:1,n:3,b:3,r:5,q:9,k:99}[board[m.to].toLowerCase()]||0):0)+(m.prom?8:0)+Math.random()*1.8})).sort((a,b)=>b.s-a.s);make(scored[0].m)}
+function beep(){try{let a=new AudioContext(),o=a.createOscillator(),g=a.createGain();o.connect(g);g.connect(a.destination);o.frequency.value=220;g.gain.value=.04;o.start();o.stop(a.currentTime+.06)}catch{}}
+document.getElementById("reset").onclick=reset;document.getElementById("undo").onclick=()=>{if(history.length){restore(history.pop());records.pop();selected=null;render();status();if(computer&&turn==="w"&&history.length) {}}};document.getElementById("mode").onchange=e=>{computer=e.target.value==="cpu";reset()};document.getElementById("sound").onclick=e=>{sound=!sound;e.target.textContent="Sound: "+(sound?"on":"off")};document.getElementById("flip").onclick=()=>{flip=!flip;render()};reset();
+let deferredInstall;window.addEventListener("beforeinstallprompt",e=>{e.preventDefault();deferredInstall=e;document.getElementById("install").hidden=false});document.getElementById("install").onclick=async()=>{if(deferredInstall){deferredInstall.prompt();await deferredInstall.userChoice;deferredInstall=null}};
+if("serviceWorker" in navigator)navigator.serviceWorker.register("./sw.js");
+</script></body></html><!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#24170f"><link rel="manifest" href="manifest.json"><title>Ancient Armies Chess II</title>
+<style>
+:root{--bg:#17130f;--panel:#292017;--gold:#c9a56b;--cream:#f0dfbd;--dark:#543b27;--light:#d9bb87;--accent:#8e3325}
+*{box-sizing:border-box}body{margin:0;background:radial-gradient(ellipse at top,#3b2b1b,#17130f 70%);color:var(--cream);font-family:system-ui,serif;min-height:100vh}
+main{max-width:1050px;margin:auto;padding:18px}.top{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}.brand h1{margin:0;color:var(--gold);letter-spacing:.08em;font-family:Georgia,serif}.brand p{margin:4px 0 12px;color:#b9a58a}
+.controls{display:flex;gap:8px;flex-wrap:wrap}.btn,select{background:#3a2a1c;color:var(--cream);border:1px solid #927347;border-radius:9px;padding:9px 12px;font-size:15px}.btn:hover{background:#57402b}.layout{display:grid;grid-template-columns:minmax(280px,680px) minmax(220px,1fr);gap:18px;margin-top:12px}.boardwrap{background:#211910;border:2px solid #9d7b47;padding:8px;border-radius:14px;box-shadow:0 12px 35px #0008}.board{display:grid;grid-template-columns:repeat(8,1fr;)}.board{grid-template-columns:repeat(8,1fr);aspect-ratio:1;overflow:hidden;border-radius:7px}
+.sq{position:relative;border:0;padding:0;aspect-ratio:1;display:grid;place-items:center;cursor:pointer;font-size:clamp(24px,6.7vw,64px);line-height:1}.sq.light{background:var(--light)}.sq.dark{background:var(--dark)}.sq.selected{box-shadow:inset 0 0 0 5px #e6c64e}.sq.target:after{content:"";position:absolute;width:23%;height:23%;border-radius:50%;background:#285c36aa}.sq.capture:after{content:"";position:absolute;inset:4px;border:4px solid #8e3325b9;border-radius:50%}.piece{filter:drop-shadow(1px 3px 1px #0007);transition:transform .15s}.sq:hover .piece{transform:translateY(-3px)}.white{color:#f8ebd2;text-shadow:0 2px 3px #352311,0 0 1px #111}.black{color:#21150d;text-shadow:0 1px 1px #d6b989}.coords{position:absolute;left:3px;top:2px;font-size:10px;color:#402e1d;opacity:.8}
+.sidebar{display:flex;flex-direction:column;gap:10px}.card{background:linear-gradient(135deg,#342519,#251a12);border:1px solid #715531;border-radius:12px;padding:13px}.card h2{font-size:17px;margin:0 0 9px;color:var(--gold)}#status{font-size:17px;min-height:28px}.history{max-height:260px;overflow:auto;white-space:pre-wrap;font-family:monospace;font-size:14px;color:#dfc9a6}.help{color:#b9a58a;font-size:13px;line-height:1.5}.row{display:flex;gap:7px;flex-wrap:wrap}.row button{flex:1}.foot{color:#8f7b62;text-align:center;font-size:12px;margin:12px}
+@keyframes battle{0%{transform:scale(1.1);filter:brightness(1.8)}100%{transform:scale(1);filter:brightness(1)}}.recent .piece{animation:battle .25s ease}
+@media(max-width:760px){main{padding:10px}.layout{grid-template-columns:1fr}.sidebar{display:grid;grid-template-columns:1fr 1fr}.historycard{grid-column:1/-1}.sq{font-size:clamp(27px,10vw,54px)}}
+
+/* Ancient Armies II battlefield upgrade */
+body{background:radial-gradient(ellipse at 50% 0%,#65472c 0,#2b1b10 42%,#100c09 100%)}
+.boardwrap{border:3px ridge #b58b4f;background:linear-gradient(135deg,#68472c,#25180f 30%,#6a492c);box-shadow:0 16px 38px #000a,inset 0 0 0 2px #24160d}
+.sq.light{background:linear-gradient(135deg,#ead8b3,#bd9862)}
+.sq.dark{background:linear-gradient(135deg,#69472d,#382316)}
+.sq{overflow:hidden}
+.sq .piece{filter:drop-shadow(1px 4px 2px #0009);transition:transform .18s,filter .18s}
+.sq:hover .piece{transform:translateY(-4px) scale(1.04);filter:drop-shadow(2px 7px 3px #000a)}
+@keyframes army-march{0%{transform:scale(.55) translateY(-15px);opacity:.25}70%{transform:scale(1.12)}100%{transform:scale(1);opacity:1}}
+@keyframes battle-strike{0%{filter:brightness(2.2);transform:scale(1.25)}100%{filter:brightness(1);transform:scale(1)}}
+.sq:has(circle[stroke="#166534"]) .piece{animation:army-march .25s ease-out}
+.card{background:linear-gradient(145deg,#3b281a,#21160f);border-color:#80603a;box-shadow:0 8px 20px #0005}
+.brand h1{color:#d4ad68;text-shadow:0 3px 8px #000;letter-spacing:.09em}
+.btn{background:linear-gradient(#543a25,#2d1d12);border-color:#a37d45}
+</style></head><body><main>
+<div class="top"><div class="brand"><h1>⚔ ANCIENT ARMIES II</h1><p>Command the legions. Claim the field.</p></div><div class="controls"><select id="mode"><option value="human">Two commanders</option><option value="cpu">Battle the computer</option></select><button class="btn" id="undo">↶ Undo</button><button class="btn" id="reset">⟲ New battle</button><button class="btn" id="install" hidden>⬇ Install</button></div></div>
+<div class="layout"><div class="boardwrap"><div id="board" class="board" aria-label="Chess board"></div></div><aside class="sidebar">
+<div class="card"><h2>Battle status</h2><div id="status">White to move</div></div>
+<div class="card"><h2>Army legend</h2><div class="help">♔ / ♚ Commander · ♕ / ♛ Queen<br>♖ / ♜ Fortress · ♗ / ♝ Sage<br>♘ / ♞ Cavalry · ♙ / ♟ Infantry</div></div>
+<div class="card historycard"><h2>Battle record</h2><div id="history" class="history">The armies await your command.</div></div>
+<div class="card"><h2>Controls</h2><div class="help">Select a piece, then a highlighted square. Tap a pawn on its final rank to promote. Undo rewinds one move. Sound can be toggled.</div><div class="row"><button class="btn" id="sound">Sound: off</button><button class="btn" id="flip">Flip board</button></div></div></aside></div>
+<div class="foot">Offline-ready web app · Install from Chrome's address bar/menu when hosted securely</div></main>
+<script>
+const glyph={K:"♔",Q:"♕",R:"♖",B:"♗",N:"♘",P:"♙",k:"♚",q:"♛",r:"♜",b:"♝",n:"♞",p:"♟"};
+let board=[],turn="w",rights="KQkq",ep=null,half=0,full=1,selected=null,targets=[],history=[],records=[],flip=false,sound=false,computer=false;
+const initial="rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR";
+function reset(){board=initial.split("/").flatMap(row=>{let out=[];for(const c of row){if(+c)out.push(...Array(+c).fill(null));else out.push(c)}return out});turn="w";rights="KQkq";ep=null;half=0;full=1;selected=null;targets=[];history=[];records=[];render();status();}
+function sqName(i){return "abcdefgh"[i%8]+(8-Math.floor(i/8))}
+function index(s){return (8-+s[1])*8+"abcdefgh".indexOf(s[0])}
+function color(p){return p?(p===p.toUpperCase()?"w":"b"):null}
+function clone(){return {b:board.slice(),t:turn,r:rights,e:ep,h:half,f:full}}
+function restore(s){board=s.b.slice();turn=s.t;rights=s.r;ep=s.e;half=s.h;full=s.f}
+function attacked(b,idx,by){
+ const f=idx%8,r=Math.floor(idx/8);
+ for(let rr=0;rr<8;rr++)for(let ff=0;ff<8;ff++){let p=b[rr*8+ff];if(!p||color(p)!==by)continue;let typ=p.toLowerCase(),dr=r-rr,df=f-ff;
+ if(typ==="p"&&dr===(by==="w"?-1:1)&&Math.abs(df)===1)return true;
+ if(typ==="n"&&((Math.abs(dr)===2&&Math.abs(df)===1)||(Math.abs(dr)===1&&Math.abs(df)===2)))return true;
+ if(typ==="k"&&Math.max(Math.abs(dr),Math.abs(df))===1)return true;
+ if(["b","r","q"].includes(typ)){let diagonal=Math.abs(dr)===Math.abs(df),straight=dr===0||df===0;if((typ==="b"&&!diagonal)||(typ==="r"&&!straight)||(typ==="q"&&!(diagonal||straight))||(!dr&&!df))continue;let sr=Math.sign(dr),sf=Math.sign(df),y=rr+sr,x=ff+sf,blocked=false;while(y!==r||x!==f){if(b[y*8+x]){blocked=true;break}y+=sr;x+=sf}if(!blocked)return true}
+ }return false
+}
+function king(b,c){return b.findIndex(p=>p===(c==="w"?"K":"k"))}
+function inCheck(b,c){return attacked(b,king(b,c),c==="w"?"b":"w")}
+function pseudo(s){let out=[],b=s.b,c=s.t;const add=(from,to,prom=null,extra={})=>{if(b[to]&&color(b[to])===c)return;if(b[to]&&b[to].toLowerCase()==="k")return;out.push({from,to,prom,...extra})};
+ for(let i=0;i<64;i++){let p=b[i];if(!p||color(p)!==c)continue;let typ=p.toLowerCase(),r=i>>3,f=i%8;
+ if(typ==="p"){let d=c==="w"?-1:1,rr=r+d;if(rr>=0&&rr<8&&!b[rr*8+f]){if(rr===0||rr===7){for(let q of "qrbn")add(i,rr*8+f,q)}else add(i,rr*8+f);let start=c==="w"?6:1,rr2=r+2*d;if(r===start&&!b[rr2*8+f])add(i,rr2*8+f,null,{double:true})}
+ for(let df of [-1,1]){let nf=f+df,nr=r+d;if(nf<0||nf>7||nr<0||nr>7)continue;let dest=nr*8+nf;if(b[dest]&&color(b[dest])!==c){if(nr===0||nr===7){for(let q of "qrbn")add(i,dest,q)}else add(i,dest)}else if(dest===s.e)add(i,dest,null,{ep:true})}
+ }else{let steps=typ==="n"?[[2,1],[2,-1],[-2,1],[-2,-1],[1,2],[1,-2],[-1,2],[-1,-2]]:typ==="k"?[[1,0],[-1,0],[0,1],[0,-1],[1,1],[1,-1],[-1,1],[-1,-1]]:typ==="b"?[[1,1],[1,-1],[-1,1],[-1,-1]]:typ==="r"?[[1,0],[-1,0],[0,1],[0,-1]]:[[1,0],[-1,0],[0,1],[0,-1],[1,1],[1,-1],[-1,1],[-1,-1]];
+ for(let [dr,df] of steps){let nr=r+dr,nf=f+df;while(nr>=0&&nr<8&&nf>=0&&nf<8){add(i,nr*8+nf);if(typ==="k"||typ==="n"||b[nr*8+nf])break;nr+=dr;nf+=df}}
+ if(typ==="k"&&r===(c==="w"?7:0)&&f===4&&!inCheck(b,c)){let enemy=c==="w"?"b":"w";if(s.r.includes(c==="w"?"K":"k")&&!b[i+1]&&!b[i+2]&&b[i+3]===(c==="w"?"R":"r")&&!attacked(b,i+1,enemy)&&!attacked(b,i+2,enemy))add(i,i+2,null,{castle:"k"});if(s.r.includes(c==="w"?"Q":"q")&&!b[i-1]&&!b[i-2]&&!b[i-3]&&b[i-4]===(c==="w"?"R":"r")&&!attacked(b,i-1,enemy)&&!attacked(b,i-2,enemy))add(i,i-2,null,{castle:"q"})}
+ }}
+ return out}
+function legal(s){return pseudo(s).filter(m=>{let b=s.b.slice(),p=b[m.from];b[m.to]=m.prom?(s.t==="w"?m.prom.toUpperCase():m.prom):p;b[m.from]=null;if(m.ep)b[m.to+(s.t==="w"?8:-8)]=null;if(m.castle){let rr=m.from>>3,rookfrom=m.castle==="k"?m.from+3:m.from-4,rookto=m.castle==="k"?m.from+1:m.from-1;b[rookto]=b[rookfrom];b[rookfrom]=null}return !inCheck(b,s.t)})}
+function make(m){let prev=clone(),p=board[m.from],cap=board[m.to];history.push(prev);board[m.to]=m.prom?(turn==="w"?m.prom.toUpperCase():m.prom):p;board[m.from]=null;if(m.ep){board[m.to+(turn==="w"?8:-8)]=null;cap=turn==="w"?"p":"P"}if(m.castle){let rf=m.castle==="k"?m.from+3:m.from-4,rt=m.castle==="k"?m.from+1:m.from-1;board[rt]=board[rf];board[rf]=null}
+ if(p==="K")rights=rights.replace(/[KQ]/g,"");if(p==="k")rights=rights.replace(/[kq]/g,"");const rookRights={63:"K",56:"Q",7:"k",0:"q"};if(p.toLowerCase()==="r")rights=rights.replace(rookRights[m.from]||"","");if(cap&&cap.toLowerCase()==="r")rights=rights.replace(rookRights[m.to]||"","");ep=m.double?((m.from+m.to)/2):null;half=p.toLowerCase()==="p"||cap?0:half+1;if(turn==="b")full++;turn=turn==="w"?"b":"w";records.push((full-(turn==="w"?1:0))+(prev.t==="w"?". ":"... ")+notation(prev,m));selected=null;targets=[];render();status();if(sound)beep();if(computer&&turn==="b"&&!terminal())setTimeout(cpuMove,450)}
+function notation(s,m){let p=s.b[m.from],cap=s.b[m.to]||m.ep,txt=m.castle?(m.castle==="k"?"O-O":"O-O-O"):(p.toLowerCase()==="p"?(cap?sqName(m.from)[0]+"x":"")+sqName(m.to):p.toUpperCase()+(cap?"x":"")+sqName(m.to))+(m.prom?"="+m.prom.toUpperCase():"");let next=clone(),moves=legal(next);if(inCheck(board,turn))txt+=moves.length?" +":" #";return txt}
+function terminal(){let ms=legal(clone());return ms.length===0||half>=100}
+function status(){let ms=legal(clone()),check=inCheck(board,turn),txt;if(!ms.length)txt=check?"CHECKMATE — "+(turn==="w"?"Black":"White")+" wins!":"Draw — stalemate";else if(half>=100)txt="Draw claim available — 50 move rule";else txt=(turn==="w"?"White":"Black")+" to move"+(check?" — CHECK":"");document.getElementById("status").textContent=txt;document.getElementById("history").textContent=records.length?records.join("  "):"The armies await your command."}
+function render(){let el=document.getElementById("board");el.innerHTML="";let moves=selected===null?[]:legal(clone()).filter(m=>m.from===selected);targets=moves.map(m=>m.to);for(let n=0;n<64;n++){let i=flip?63-n:n,cell=document.createElement("button");cell.className="sq "+(((i>>3)+(i&7))%2?"dark":"light");if(i===selected)cell.classList.add("selected");if(targets.includes(i))cell.classList.add(board[i]?"capture":"target");let p=board[i];if(p){let sp=document.createElement("span");sp.className="piece "+(color(p)==="w"?"white":"black");sp.textContent=glyph[p];cell.append(sp)}let co=document.createElement("span");co.className="coords";co.textContent=(i%8===0?8-(i>>3):"")+(i>>3===7?"abcdefgh"[i%8]:"");cell.append(co);cell.onclick=()=>click(i);el.append(cell)}}
+function click(i){if(computer&&turn==="b")return;let ms=legal(clone());if(selected!==null){let opts=ms.filter(m=>m.from===selected&&m.to===i);if(opts.length){let m=opts[0];if(opts.length>1){let choice=prompt("Promote to: Q, R, B, or N","Q");m=opts.find(x=>x.prom===(choice||"Q").toLowerCase())||opts[0]}make(m);return}}
+ if(board[i]&&color(board[i])===turn){selected=i;render()}else{selected=null;render()}}
+function cpuMove(){if(turn!=="b"||!computer)return;let ms=legal(clone());if(!ms.length)return;let scored=ms.map(m=>({m,s:(board[m.to]?({p:1,n:3,b:3,r:5,q:9,k:99}[board[m.to].toLowerCase()]||0):0)+(m.prom?8:0)+Math.random()*1.8})).sort((a,b)=>b.s-a.s);make(scored[0].m)}
+function beep(){try{let a=new AudioContext(),o=a.createOscillator(),g=a.createGain();o.connect(g);g.connect(a.destination);o.frequency.value=220;g.gain.value=.04;o.start();o.stop(a.currentTime+.06)}catch{}}
+document.getElementById("reset").onclick=reset;document.getElementById("undo").onclick=()=>{if(history.length){restore(history.pop());records.pop();selected=null;render();status();if(computer&&turn==="w"&&history.length) {}}};document.getElementById("mode").onchange=e=>{computer=e.target.value==="cpu";reset()};document.getElementById("sound").onclick=e=>{sound=!sound;e.target.textContent="Sound: "+(sound?"on":"off")};document.getElementById("flip").onclick=()=>{flip=!flip;render()};reset();
+let deferredInstall;window.addEventListener("beforeinstallprompt",e=>{e.preventDefault();deferredInstall=e;document.getElementById("install").hidden=false});document.getElementById("install").onclick=async()=>{if(deferredInstall){deferredInstall.prompt();await deferredInstall.userChoice;deferredInstall=null}};
+if("serviceWorker" in navigator)navigator.serviceWorker.register("./sw.js");
+</script></body></html><!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#24170f"><link rel="manifest" href="manifest.json"><title>Ancient Armies Chess II</title>
+<style>
+:root{--bg:#17130f;--panel:#292017;--gold:#c9a56b;--cream:#f0dfbd;--dark:#543b27;--light:#d9bb87;--accent:#8e3325}
+*{box-sizing:border-box}body{margin:0;background:radial-gradient(ellipse at top,#3b2b1b,#17130f 70%);color:var(--cream);font-family:system-ui,serif;min-height:100vh}
+main{max-width:1050px;margin:auto;padding:18px}.top{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}.brand h1{margin:0;color:var(--gold);letter-spacing:.08em;font-family:Georgia,serif}.brand p{margin:4px 0 12px;color:#b9a58a}
+.controls{display:flex;gap:8px;flex-wrap:wrap}.btn,select{background:#3a2a1c;color:var(--cream);border:1px solid #927347;border-radius:9px;padding:9px 12px;font-size:15px}.btn:hover{background:#57402b}.layout{display:grid;grid-template-columns:minmax(280px,680px) minmax(220px,1fr);gap:18px;margin-top:12px}.boardwrap{background:#211910;border:2px solid #9d7b47;padding:8px;border-radius:14px;box-shadow:0 12px 35px #0008}.board{display:grid;grid-template-columns:repeat(8,1fr;)}.board{grid-template-columns:repeat(8,1fr);aspect-ratio:1;overflow:hidden;border-radius:7px}
+.sq{position:relative;border:0;padding:0;aspect-ratio:1;display:grid;place-items:center;cursor:pointer;font-size:clamp(24px,6.7vw,64px);line-height:1}.sq.light{background:var(--light)}.sq.dark{background:var(--dark)}.sq.selected{box-shadow:inset 0 0 0 5px #e6c64e}.sq.target:after{content:"";position:absolute;width:23%;height:23%;border-radius:50%;background:#285c36aa}.sq.capture:after{content:"";position:absolute;inset:4px;border:4px solid #8e3325b9;border-radius:50%}.piece{filter:drop-shadow(1px 3px 1px #0007);transition:transform .15s}.sq:hover .piece{transform:translateY(-3px)}.white{color:#f8ebd2;text-shadow:0 2px 3px #352311,0 0 1px #111}.black{color:#21150d;text-shadow:0 1px 1px #d6b989}.coords{position:absolute;left:3px;top:2px;font-size:10px;color:#402e1d;opacity:.8}
+.sidebar{display:flex;flex-direction:column;gap:10px}.card{background:linear-gradient(135deg,#342519,#251a12);border:1px solid #715531;border-radius:12px;padding:13px}.card h2{font-size:17px;margin:0 0 9px;color:var(--gold)}#status{font-size:17px;min-height:28px}.history{max-height:260px;overflow:auto;white-space:pre-wrap;font-family:monospace;font-size:14px;color:#dfc9a6}.help{color:#b9a58a;font-size:13px;line-height:1.5}.row{display:flex;gap:7px;flex-wrap:wrap}.row button{flex:1}.foot{color:#8f7b62;text-align:center;font-size:12px;margin:12px}
+@keyframes battle{0%{transform:scale(1.1);filter:brightness(1.8)}100%{transform:scale(1);filter:brightness(1)}}.recent .piece{animation:battle .25s ease}
+@media(max-width:760px){main{padding:10px}.layout{grid-template-columns:1fr}.sidebar{display:grid;grid-template-columns:1fr 1fr}.historycard{grid-column:1/-1}.sq{font-size:clamp(27px,10vw,54px)}}
+
+/* Ancient Armies II battlefield upgrade */
+body{background:radial-gradient(ellipse at 50% 0%,#65472c 0,#2b1b10 42%,#100c09 100%)}
+.boardwrap{border:3px ridge #b58b4f;background:linear-gradient(135deg,#68472c,#25180f 30%,#6a492c);box-shadow:0 16px 38px #000a,inset 0 0 0 2px #24160d}
+.sq.light{background:linear-gradient(135deg,#ead8b3,#bd9862)}
+.sq.dark{background:linear-gradient(135deg,#69472d,#382316)}
+.sq{overflow:hidden}
+.sq .piece{filter:drop-shadow(1px 4px 2px #0009);transition:transform .18s,filter .18s}
+.sq:hover .piece{transform:translateY(-4px) scale(1.04);filter:drop-shadow(2px 7px 3px #000a)}
+@keyframes army-march{0%{transform:scale(.55) translateY(-15px);opacity:.25}70%{transform:scale(1.12)}100%{transform:scale(1);opacity:1}}
+@keyframes battle-strike{0%{filter:brightness(2.2);transform:scale(1.25)}100%{filter:brightness(1);transform:scale(1)}}
+.sq:has(circle[stroke="#166534"]) .piece{animation:army-march .25s ease-out}
+.card{background:linear-gradient(145deg,#3b281a,#21160f);border-color:#80603a;box-shadow:0 8px 20px #0005}
+.brand h1{color:#d4ad68;text-shadow:0 3px 8px #000;letter-spacing:.09em}
+.btn{background:linear-gradient(#543a25,#2d1d12);border-color:#a37d45}
+</style></head><body><main>
+<div class="top"><div class="brand"><h1>⚔ ANCIENT ARMIES II</h1><p>Command the legions. Claim the field.</p></div><div class="controls"><select id="mode"><option value="human">Two commanders</option><option value="cpu">Battle the computer</option></select><button class="btn" id="undo">↶ Undo</button><button class="btn" id="reset">⟲ New battle</button><button class="btn" id="install" hidden>⬇ Install</button></div></div>
+<div class="layout"><div class="boardwrap"><div id="board" class="board" aria-label="Chess board"></div></div><aside class="sidebar">
+<div class="card"><h2>Battle status</h2><div id="status">White to move</div></div>
+<div class="card"><h2>Army legend</h2><div class="help">♔ / ♚ Commander · ♕ / ♛ Queen<br>♖ / ♜ Fortress · ♗ / ♝ Sage<br>♘ / ♞ Cavalry · ♙ / ♟ Infantry</div></div>
+<div class="card historycard"><h2>Battle record</h2><div id="history" class="history">The armies await your command.</div></div>
+<div class="card"><h2>Controls</h2><div class="help">Select a piece, then a highlighted square. Tap a pawn on its final rank to promote. Undo rewinds one move. Sound can be toggled.</div><div class="row"><button class="btn" id="sound">Sound: off</button><button class="btn" id="flip">Flip board</button></div></div></aside></div>
+<div class="foot">Offline-ready web app · Install from Chrome's address bar/menu when hosted securely</div></main>
+<script>
+const glyph={K:"♔",Q:"♕",R:"♖",B:"♗",N:"♘",P:"♙",k:"♚",q:"♛",r:"♜",b:"♝",n:"♞",p:"♟"};
+let board=[],turn="w",rights="KQkq",ep=null,half=0,full=1,selected=null,targets=[],history=[],records=[],flip=false,sound=false,computer=false;
+const initial="rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR";
+function reset(){board=initial.split("/").flatMap(row=>{let out=[];for(const c of row){if(+c)out.push(...Array(+c).fill(null));else out.push(c)}return out});turn="w";rights="KQkq";ep=null;half=0;full=1;selected=null;targets=[];history=[];records=[];render();status();}
+function sqName(i){return "abcdefgh"[i%8]+(8-Math.floor(i/8))}
+function index(s){return (8-+s[1])*8+"abcdefgh".indexOf(s[0])}
+function color(p){return p?(p===p.toUpperCase()?"w":"b"):null}
+function clone(){return {b:board.slice(),t:turn,r:rights,e:ep,h:half,f:full}}
+function restore(s){board=s.b.slice();turn=s.t;rights=s.r;ep=s.e;half=s.h;full=s.f}
+function attacked(b,idx,by){
+ const f=idx%8,r=Math.floor(idx/8);
+ for(let rr=0;rr<8;rr++)for(let ff=0;ff<8;ff++){let p=b[rr*8+ff];if(!p||color(p)!==by)continue;let typ=p.toLowerCase(),dr=r-rr,df=f-ff;
+ if(typ==="p"&&dr===(by==="w"?-1:1)&&Math.abs(df)===1)return true;
+ if(typ==="n"&&((Math.abs(dr)===2&&Math.abs(df)===1)||(Math.abs(dr)===1&&Math.abs(df)===2)))return true;
+ if(typ==="k"&&Math.max(Math.abs(dr),Math.abs(df))===1)return true;
+ if(["b","r","q"].includes(typ)){let diagonal=Math.abs(dr)===Math.abs(df),straight=dr===0||df===0;if((typ==="b"&&!diagonal)||(typ==="r"&&!straight)||(typ==="q"&&!(diagonal||straight))||(!dr&&!df))continue;let sr=Math.sign(dr),sf=Math.sign(df),y=rr+sr,x=ff+sf,blocked=false;while(y!==r||x!==f){if(b[y*8+x]){blocked=true;break}y+=sr;x+=sf}if(!blocked)return true}
+ }return false
+}
+function king(b,c){return b.findIndex(p=>p===(c==="w"?"K":"k"))}
+function inCheck(b,c){return attacked(b,king(b,c),c==="w"?"b":"w")}
+function pseudo(s){let out=[],b=s.b,c=s.t;const add=(from,to,prom=null,extra={})=>{if(b[to]&&color(b[to])===c)return;if(b[to]&&b[to].toLowerCase()==="k")return;out.push({from,to,prom,...extra})};
+ for(let i=0;i<64;i++){let p=b[i];if(!p||color(p)!==c)continue;let typ=p.toLowerCase(),r=i>>3,f=i%8;
+ if(typ==="p"){let d=c==="w"?-1:1,rr=r+d;if(rr>=0&&rr<8&&!b[rr*8+f]){if(rr===0||rr===7){for(let q of "qrbn")add(i,rr*8+f,q)}else add(i,rr*8+f);let start=c==="w"?6:1,rr2=r+2*d;if(r===start&&!b[rr2*8+f])add(i,rr2*8+f,null,{double:true})}
+ for(let df of [-1,1]){let nf=f+df,nr=r+d;if(nf<0||nf>7||nr<0||nr>7)continue;let dest=nr*8+nf;if(b[dest]&&color(b[dest])!==c){if(nr===0||nr===7){for(let q of "qrbn")add(i,dest,q)}else add(i,dest)}else if(dest===s.e)add(i,dest,null,{ep:true})}
+ }else{let steps=typ==="n"?[[2,1],[2,-1],[-2,1],[-2,-1],[1,2],[1,-2],[-1,2],[-1,-2]]:typ==="k"?[[1,0],[-1,0],[0,1],[0,-1],[1,1],[1,-1],[-1,1],[-1,-1]]:typ==="b"?[[1,1],[1,-1],[-1,1],[-1,-1]]:typ==="r"?[[1,0],[-1,0],[0,1],[0,-1]]:[[1,0],[-1,0],[0,1],[0,-1],[1,1],[1,-1],[-1,1],[-1,-1]];
+ for(let [dr,df] of steps){let nr=r+dr,nf=f+df;while(nr>=0&&nr<8&&nf>=0&&nf<8){add(i,nr*8+nf);if(typ==="k"||typ==="n"||b[nr*8+nf])break;nr+=dr;nf+=df}}
+ if(typ==="k"&&r===(c==="w"?7:0)&&f===4&&!inCheck(b,c)){let enemy=c==="w"?"b":"w";if(s.r.includes(c==="w"?"K":"k")&&!b[i+1]&&!b[i+2]&&b[i+3]===(c==="w"?"R":"r")&&!attacked(b,i+1,enemy)&&!attacked(b,i+2,enemy))add(i,i+2,null,{castle:"k"});if(s.r.includes(c==="w"?"Q":"q")&&!b[i-1]&&!b[i-2]&&!b[i-3]&&b[i-4]===(c==="w"?"R":"r")&&!attacked(b,i-1,enemy)&&!attacked(b,i-2,enemy))add(i,i-2,null,{castle:"q"})}
+ }}
+ return out}
+function legal(s){return pseudo(s).filter(m=>{let b=s.b.slice(),p=b[m.from];b[m.to]=m.prom?(s.t==="w"?m.prom.toUpperCase():m.prom):p;b[m.from]=null;if(m.ep)b[m.to+(s.t==="w"?8:-8)]=null;if(m.castle){let rr=m.from>>3,rookfrom=m.castle==="k"?m.from+3:m.from-4,rookto=m.castle==="k"?m.from+1:m.from-1;b[rookto]=b[rookfrom];b[rookfrom]=null}return !inCheck(b,s.t)})}
+function make(m){let prev=clone(),p=board[m.from],cap=board[m.to];history.push(prev);board[m.to]=m.prom?(turn==="w"?m.prom.toUpperCase():m.prom):p;board[m.from]=null;if(m.ep){board[m.to+(turn==="w"?8:-8)]=null;cap=turn==="w"?"p":"P"}if(m.castle){let rf=m.castle==="k"?m.from+3:m.from-4,rt=m.castle==="k"?m.from+1:m.from-1;board[rt]=board[rf];board[rf]=null}
+ if(p==="K")rights=rights.replace(/[KQ]/g,"");if(p==="k")rights=rights.replace(/[kq]/g,"");const rookRights={63:"K",56:"Q",7:"k",0:"q"};if(p.toLowerCase()==="r")rights=rights.replace(rookRights[m.from]||"","");if(cap&&cap.toLowerCase()==="r")rights=rights.replace(rookRights[m.to]||"","");ep=m.double?((m.from+m.to)/2):null;half=p.toLowerCase()==="p"||cap?0:half+1;if(turn==="b")full++;turn=turn==="w"?"b":"w";records.push((full-(turn==="w"?1:0))+(prev.t==="w"?". ":"... ")+notation(prev,m));selected=null;targets=[];render();status();if(sound)beep();if(computer&&turn==="b"&&!terminal())setTimeout(cpuMove,450)}
+function notation(s,m){let p=s.b[m.from],cap=s.b[m.to]||m.ep,txt=m.castle?(m.castle==="k"?"O-O":"O-O-O"):(p.toLowerCase()==="p"?(cap?sqName(m.from)[0]+"x":"")+sqName(m.to):p.toUpperCase()+(cap?"x":"")+sqName(m.to))+(m.prom?"="+m.prom.toUpperCase():"");let next=clone(),moves=legal(next);if(inCheck(board,turn))txt+=moves.length?" +":" #";return txt}
+function terminal(){let ms=legal(clone());return ms.length===0||half>=100}
+function status(){let ms=legal(clone()),check=inCheck(board,turn),txt;if(!ms.length)txt=check?"CHECKMATE — "+(turn==="w"?"Black":"White")+" wins!":"Draw — stalemate";else if(half>=100)txt="Draw claim available — 50 move rule";else txt=(turn==="w"?"White":"Black")+" to move"+(check?" — CHECK":"");document.getElementById("status").textContent=txt;document.getElementById("history").textContent=records.length?records.join("  "):"The armies await your command."}
+function render(){let el=document.getElementById("board");el.innerHTML="";let moves=selected===null?[]:legal(clone()).filter(m=>m.from===selected);targets=moves.map(m=>m.to);for(let n=0;n<64;n++){let i=flip?63-n:n,cell=document.createElement("button");cell.className="sq "+(((i>>3)+(i&7))%2?"dark":"light");if(i===selected)cell.classList.add("selected");if(targets.includes(i))cell.classList.add(board[i]?"capture":"target");let p=board[i];if(p){let sp=document.createElement("span");sp.className="piece "+(color(p)==="w"?"white":"black");sp.textContent=glyph[p];cell.append(sp)}let co=document.createElement("span");co.className="coords";co.textContent=(i%8===0?8-(i>>3):"")+(i>>3===7?"abcdefgh"[i%8]:"");cell.append(co);cell.onclick=()=>click(i);el.append(cell)}}
+function click(i){if(computer&&turn==="b")return;let ms=legal(clone());if(selected!==null){let opts=ms.filter(m=>m.from===selected&&m.to===i);if(opts.length){let m=opts[0];if(opts.length>1){let choice=prompt("Promote to: Q, R, B, or N","Q");m=opts.find(x=>x.prom===(choice||"Q").toLowerCase())||opts[0]}make(m);return}}
+ if(board[i]&&color(board[i])===turn){selected=i;render()}else{selected=null;render()}}
+function cpuMove(){if(turn!=="b"||!computer)return;let ms=legal(clone());if(!ms.length)return;let scored=ms.map(m=>({m,s:(board[m.to]?({p:1,n:3,b:3,r:5,q:9,k:99}[board[m.to].toLowerCase()]||0):0)+(m.prom?8:0)+Math.random()*1.8})).sort((a,b)=>b.s-a.s);make(scored[0].m)}
+function beep(){try{let a=new AudioContext(),o=a.createOscillator(),g=a.createGain();o.connect(g);g.connect(a.destination);o.frequency.value=220;g.gain.value=.04;o.start();o.stop(a.currentTime+.06)}catch{}}
+document.getElementById("reset").onclick=reset;document.getElementById("undo").onclick=()=>{if(history.length){restore(history.pop());records.pop();selected=null;render();status();if(computer&&turn==="w"&&history.length) {}}};document.getElementById("mode").onchange=e=>{computer=e.target.value==="cpu";reset()};document.getElementById("sound").onclick=e=>{sound=!sound;e.target.textContent="Sound: "+(sound?"on":"off")};document.getElementById("flip").onclick=()=>{flip=!flip;render()};reset();
+let deferredInstall;window.addEventListener("beforeinstallprompt",e=>{e.preventDefault();deferredInstall=e;document.getElementById("install").hidden=false});document.getElementById("install").onclick=async()=>{if(deferredInstall){deferredInstall.prompt();await deferredInstall.userChoice;deferredInstall=null}};
+if("serviceWorker" in navigator)navigator.serviceWorker.register("./sw.js");
+</script></body></html><!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#24170f"><link rel="manifest" href="manifest.json"><title>Ancient Armies Chess II</title>
+<style>
+:root{--bg:#17130f;--panel:#292017;--gold:#c9a56b;--cream:#f0dfbd;--dark:#543b27;--light:#d9bb87;--accent:#8e3325}
+*{box-sizing:border-box}body{margin:0;background:radial-gradient(ellipse at top,#3b2b1b,#17130f 70%);color:var(--cream);font-family:system-ui,serif;min-height:100vh}
+main{max-width:1050px;margin:auto;padding:18px}.top{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}.brand h1{margin:0;color:var(--gold);letter-spacing:.08em;font-family:Georgia,serif}.brand p{margin:4px 0 12px;color:#b9a58a}
+.controls{display:flex;gap:8px;flex-wrap:wrap}.btn,select{background:#3a2a1c;color:var(--cream);border:1px solid #927347;border-radius:9px;padding:9px 12px;font-size:15px}.btn:hover{background:#57402b}.layout{display:grid;grid-template-columns:minmax(280px,680px) minmax(220px,1fr);gap:18px;margin-top:12px}.boardwrap{background:#211910;border:2px solid #9d7b47;padding:8px;border-radius:14px;box-shadow:0 12px 35px #0008}.board{display:grid;grid-template-columns:repeat(8,1fr;)}.board{grid-template-columns:repeat(8,1fr);aspect-ratio:1;overflow:hidden;border-radius:7px}
+.sq{position:relative;border:0;padding:0;aspect-ratio:1;display:grid;place-items:center;cursor:pointer;font-size:clamp(24px,6.7vw,64px);line-height:1}.sq.light{background:var(--light)}.sq.dark{background:var(--dark)}.sq.selected{box-shadow:inset 0 0 0 5px #e6c64e}.sq.target:after{content:"";position:absolute;width:23%;height:23%;border-radius:50%;background:#285c36aa}.sq.capture:after{content:"";position:absolute;inset:4px;border:4px solid #8e3325b9;border-radius:50%}.piece{filter:drop-shadow(1px 3px 1px #0007);transition:transform .15s}.sq:hover .piece{transform:translateY(-3px)}.white{color:#f8ebd2;text-shadow:0 2px 3px #352311,0 0 1px #111}.black{color:#21150d;text-shadow:0 1px 1px #d6b989}.coords{position:absolute;left:3px;top:2px;font-size:10px;color:#402e1d;opacity:.8}
+.sidebar{display:flex;flex-direction:column;gap:10px}.card{background:linear-gradient(135deg,#342519,#251a12);border:1px solid #715531;border-radius:12px;padding:13px}.card h2{font-size:17px;margin:0 0 9px;color:var(--gold)}#status{font-size:17px;min-height:28px}.history{max-height:260px;overflow:auto;white-space:pre-wrap;font-family:monospace;font-size:14px;color:#dfc9a6}.help{color:#b9a58a;font-size:13px;line-height:1.5}.row{display:flex;gap:7px;flex-wrap:wrap}.row button{flex:1}.foot{color:#8f7b62;text-align:center;font-size:12px;margin:12px}
+@keyframes battle{0%{transform:scale(1.1);filter:brightness(1.8)}100%{transform:scale(1);filter:brightness(1)}}.recent .piece{animation:battle .25s ease}
+@media(max-width:760px){main{padding:10px}.layout{grid-template-columns:1fr}.sidebar{display:grid;grid-template-columns:1fr 1fr}.historycard{grid-column:1/-1}.sq{font-size:clamp(27px,10vw,54px)}}
+
+/* Ancient Armies II battlefield upgrade */
+body{background:radial-gradient(ellipse at 50% 0%,#65472c 0,#2b1b10 42%,#100c09 100%)}
+.boardwrap{border:3px ridge #b58b4f;background:linear-gradient(135deg,#68472c,#25180f 30%,#6a492c);box-shadow:0 16px 38px #000a,inset 0 0 0 2px #24160d}
+.sq.light{background:linear-gradient(135deg,#ead8b3,#bd9862)}
+.sq.dark{background:linear-gradient(135deg,#69472d,#382316)}
+.sq{overflow:hidden}
+.sq .piece{filter:drop-shadow(1px 4px 2px #0009);transition:transform .18s,filter .18s}
+.sq:hover .piece{transform:translateY(-4px) scale(1.04);filter:drop-shadow(2px 7px 3px #000a)}
+@keyframes army-march{0%{transform:scale(.55) translateY(-15px);opacity:.25}70%{transform:scale(1.12)}100%{transform:scale(1);opacity:1}}
+@keyframes battle-strike{0%{filter:brightness(2.2);transform:scale(1.25)}100%{filter:brightness(1);transform:scale(1)}}
+.sq:has(circle[stroke="#166534"]) .piece{animation:army-march .25s ease-out}
+.card{background:linear-gradient(145deg,#3b281a,#21160f);border-color:#80603a;box-shadow:0 8px 20px #0005}
+.brand h1{color:#d4ad68;text-shadow:0 3px 8px #000;letter-spacing:.09em}
+.btn{background:linear-gradient(#543a25,#2d1d12);border-color:#a37d45}
+</style></head><body><main>
+<div class="top"><div class="brand"><h1>⚔ ANCIENT ARMIES II</h1><p>Command the legions. Claim the field.</p></div><div class="controls"><select id="mode"><option value="human">Two commanders</option><option value="cpu">Battle the computer</option></select><button class="btn" id="undo">↶ Undo</button><button class="btn" id="reset">⟲ New battle</button><button class="btn" id="install" hidden>⬇ Install</button></div></div>
+<div class="layout"><div class="boardwrap"><div id="board" class="board" aria-label="Chess board"></div></div><aside class="sidebar">
+<div class="card"><h2>Battle status</h2><div id="status">White to move</div></div>
+<div class="card"><h2>Army legend</h2><div class="help">♔ / ♚ Commander · ♕ / ♛ Queen<br>♖ / ♜ Fortress · ♗ / ♝ Sage<br>♘ / ♞ Cavalry · ♙ / ♟ Infantry</div></div>
+<div class="card historycard"><h2>Battle record</h2><div id="history" class="history">The armies await your command.</div></div>
+<div class="card"><h2>Controls</h2><div class="help">Select a piece, then a highlighted square. Tap a pawn on its final rank to promote. Undo rewinds one move. Sound can be toggled.</div><div class="row"><button class="btn" id="sound">Sound: off</button><button class="btn" id="flip">Flip board</button></div></div></aside></div>
+<div class="foot">Offline-ready web app · Install from Chrome's address bar/menu when hosted securely</div></main>
+<script>
+const glyph={K:"♔",Q:"♕",R:"♖",B:"♗",N:"♘",P:"♙",k:"♚",q:"♛",r:"♜",b:"♝",n:"♞",p:"♟"};
+let board=[],turn="w",rights="KQkq",ep=null,half=0,full=1,selected=null,targets=[],history=[],records=[],flip=false,sound=false,computer=false;
+const initial="rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR";
+function reset(){board=initial.split("/").flatMap(row=>{let out=[];for(const c of row){if(+c)out.push(...Array(+c).fill(null));else out.push(c)}return out});turn="w";rights="KQkq";ep=null;half=0;full=1;selected=null;targets=[];history=[];records=[];render();status();}
+function sqName(i){return "abcdefgh"[i%8]+(8-Math.floor(i/8))}
+function index(s){return (8-+s[1])*8+"abcdefgh".indexOf(s[0])}
+function color(p){return p?(p===p.toUpperCase()?"w":"b"):null}
+function clone(){return {b:board.slice(),t:turn,r:rights,e:ep,h:half,f:full}}
+function restore(s){board=s.b.slice();turn=s.t;rights=s.r;ep=s.e;half=s.h;full=s.f}
+function attacked(b,idx,by){
+ const f=idx%8,r=Math.floor(idx/8);
+ for(let rr=0;rr<8;rr++)for(let ff=0;ff<8;ff++){let p=b[rr*8+ff];if(!p||color(p)!==by)continue;let typ=p.toLowerCase(),dr=r-rr,df=f-ff;
+ if(typ==="p"&&dr===(by==="w"?-1:1)&&Math.abs(df)===1)return true;
+ if(typ==="n"&&((Math.abs(dr)===2&&Math.abs(df)===1)||(Math.abs(dr)===1&&Math.abs(df)===2)))return true;
+ if(typ==="k"&&Math.max(Math.abs(dr),Math.abs(df))===1)return true;
+ if(["b","r","q"].includes(typ)){let diagonal=Math.abs(dr)===Math.abs(df),straight=dr===0||df===0;if((typ==="b"&&!diagonal)||(typ==="r"&&!straight)||(typ==="q"&&!(diagonal||straight))||(!dr&&!df))continue;let sr=Math.sign(dr),sf=Math.sign(df),y=rr+sr,x=ff+sf,blocked=false;while(y!==r||x!==f){if(b[y*8+x]){blocked=true;break}y+=sr;x+=sf}if(!blocked)return true}
+ }return false
+}
+function king(b,c){return b.findIndex(p=>p===(c==="w"?"K":"k"))}
+function inCheck(b,c){return attacked(b,king(b,c),c==="w"?"b":"w")}
+function pseudo(s){let out=[],b=s.b,c=s.t;const add=(from,to,prom=null,extra={})=>{if(b[to]&&color(b[to])===c)return;if(b[to]&&b[to].toLowerCase()==="k")return;out.push({from,to,prom,...extra})};
+ for(let i=0;i<64;i++){let p=b[i];if(!p||color(p)!==c)continue;let typ=p.toLowerCase(),r=i>>3,f=i%8;
+ if(typ==="p"){let d=c==="w"?-1:1,rr=r+d;if(rr>=0&&rr<8&&!b[rr*8+f]){if(rr===0||rr===7){for(let q of "qrbn")add(i,rr*8+f,q)}else add(i,rr*8+f);let start=c==="w"?6:1,rr2=r+2*d;if(r===start&&!b[rr2*8+f])add(i,rr2*8+f,null,{double:true})}
+ for(let df of [-1,1]){let nf=f+df,nr=r+d;if(nf<0||nf>7||nr<0||nr>7)continue;let dest=nr*8+nf;if(b[dest]&&color(b[dest])!==c){if(nr===0||nr===7){for(let q of "qrbn")add(i,dest,q)}else add(i,dest)}else if(dest===s.e)add(i,dest,null,{ep:true})}
+ }else{let steps=typ==="n"?[[2,1],[2,-1],[-2,1],[-2,-1],[1,2],[1,-2],[-1,2],[-1,-2]]:typ==="k"?[[1,0],[-1,0],[0,1],[0,-1],[1,1],[1,-1],[-1,1],[-1,-1]]:typ==="b"?[[1,1],[1,-1],[-1,1],[-1,-1]]:typ==="r"?[[1,0],[-1,0],[0,1],[0,-1]]:[[1,0],[-1,0],[0,1],[0,-1],[1,1],[1,-1],[-1,1],[-1,-1]];
+ for(let [dr,df] of steps){let nr=r+dr,nf=f+df;while(nr>=0&&nr<8&&nf>=0&&nf<8){add(i,nr*8+nf);if(typ==="k"||typ==="n"||b[nr*8+nf])break;nr+=dr;nf+=df}}
+ if(typ==="k"&&r===(c==="w"?7:0)&&f===4&&!inCheck(b,c)){let enemy=c==="w"?"b":"w";if(s.r.includes(c==="w"?"K":"k")&&!b[i+1]&&!b[i+2]&&b[i+3]===(c==="w"?"R":"r")&&!attacked(b,i+1,enemy)&&!attacked(b,i+2,enemy))add(i,i+2,null,{castle:"k"});if(s.r.includes(c==="w"?"Q":"q")&&!b[i-1]&&!b[i-2]&&!b[i-3]&&b[i-4]===(c==="w"?"R":"r")&&!attacked(b,i-1,enemy)&&!attacked(b,i-2,enemy))add(i,i-2,null,{castle:"q"})}
+ }}
+ return out}
+function legal(s){return pseudo(s).filter(m=>{let b=s.b.slice(),p=b[m.from];b[m.to]=m.prom?(s.t==="w"?m.prom.toUpperCase():m.prom):p;b[m.from]=null;if(m.ep)b[m.to+(s.t==="w"?8:-8)]=null;if(m.castle){let rr=m.from>>3,rookfrom=m.castle==="k"?m.from+3:m.from-4,rookto=m.castle==="k"?m.from+1:m.from-1;b[rookto]=b[rookfrom];b[rookfrom]=null}return !inCheck(b,s.t)})}
+function make(m){let prev=clone(),p=board[m.from],cap=board[m.to];history.push(prev);board[m.to]=m.prom?(turn==="w"?m.prom.toUpperCase():m.prom):p;board[m.from]=null;if(m.ep){board[m.to+(turn==="w"?8:-8)]=null;cap=turn==="w"?"p":"P"}if(m.castle){let rf=m.castle==="k"?m.from+3:m.from-4,rt=m.castle==="k"?m.from+1:m.from-1;board[rt]=board[rf];board[rf]=null}
+ if(p==="K")rights=rights.replace(/[KQ]/g,"");if(p==="k")rights=rights.replace(/[kq]/g,"");const rookRights={63:"K",56:"Q",7:"k",0:"q"};if(p.toLowerCase()==="r")rights=rights.replace(rookRights[m.from]||"","");if(cap&&cap.toLowerCase()==="r")rights=rights.replace(rookRights[m.to]||"","");ep=m.double?((m.from+m.to)/2):null;half=p.toLowerCase()==="p"||cap?0:half+1;if(turn==="b")full++;turn=turn==="w"?"b":"w";records.push((full-(turn==="w"?1:0))+(prev.t==="w"?". ":"... ")+notation(prev,m));selected=null;targets=[];render();status();if(sound)beep();if(computer&&turn==="b"&&!terminal())setTimeout(cpuMove,450)}
+function notation(s,m){let p=s.b[m.from],cap=s.b[m.to]||m.ep,txt=m.castle?(m.castle==="k"?"O-O":"O-O-O"):(p.toLowerCase()==="p"?(cap?sqName(m.from)[0]+"x":"")+sqName(m.to):p.toUpperCase()+(cap?"x":"")+sqName(m.to))+(m.prom?"="+m.prom.toUpperCase():"");let next=clone(),moves=legal(next);if(inCheck(board,turn))txt+=moves.length?" +":" #";return txt}
+function terminal(){let ms=legal(clone());return ms.length===0||half>=100}
+function status(){let ms=legal(clone()),check=inCheck(board,turn),txt;if(!ms.length)txt=check?"CHECKMATE — "+(turn==="w"?"Black":"White")+" wins!":"Draw — stalemate";else if(half>=100)txt="Draw claim available — 50 move rule";else txt=(turn==="w"?"White":"Black")+" to move"+(check?" — CHECK":"");document.getElementById("status").textContent=txt;document.getElementById("history").textContent=records.length?records.join("  "):"The armies await your command."}
+function render(){let el=document.getElementById("board");el.innerHTML="";let moves=selected===null?[]:legal(clone()).filter(m=>m.from===selected);targets=moves.map(m=>m.to);for(let n=0;n<64;n++){let i=flip?63-n:n,cell=document.createElement("button");cell.className="sq "+(((i>>3)+(i&7))%2?"dark":"light");if(i===selected)cell.classList.add("selected");if(targets.includes(i))cell.classList.add(board[i]?"capture":"target");let p=board[i];if(p){let sp=document.createElement("span");sp.className="piece "+(color(p)==="w"?"white":"black");sp.textContent=glyph[p];cell.append(sp)}let co=document.createElement("span");co.className="coords";co.textContent=(i%8===0?8-(i>>3):"")+(i>>3===7?"abcdefgh"[i%8]:"");cell.append(co);cell.onclick=()=>click(i);el.append(cell)}}
+function click(i){if(computer&&turn==="b")return;let ms=legal(clone());if(selected!==null){let opts=ms.filter(m=>m.from===selected&&m.to===i);if(opts.length){let m=opts[0];if(opts.length>1){let choice=prompt("Promote to: Q, R, B, or N","Q");m=opts.find(x=>x.prom===(choice||"Q").toLowerCase())||opts[0]}make(m);return}}
+ if(board[i]&&color(board[i])===turn){selected=i;render()}else{selected=null;render()}}
+function cpuMove(){if(turn!=="b"||!computer)return;let ms=legal(clone());if(!ms.length)return;let scored=ms.map(m=>({m,s:(board[m.to]?({p:1,n:3,b:3,r:5,q:9,k:99}[board[m.to].toLowerCase()]||0):0)+(m.prom?8:0)+Math.random()*1.8})).sort((a,b)=>b.s-a.s);make(scored[0].m)}
+function beep(){try{let a=new AudioContext(),o=a.createOscillator(),g=a.createGain();o.connect(g);g.connect(a.destination);o.frequency.value=220;g.gain.value=.04;o.start();o.stop(a.currentTime+.06)}catch{}}
+document.getElementById("reset").onclick=reset;document.getElementById("undo").onclick=()=>{if(history.length){restore(history.pop());records.pop();selected=null;render();status();if(computer&&turn==="w"&&history.length) {}}};document.getElementById("mode").onchange=e=>{computer=e.target.value==="cpu";reset()};document.getElementById("sound").onclick=e=>{sound=!sound;e.target.textContent="Sound: "+(sound?"on":"off")};document.getElementById("flip").onclick=()=>{flip=!flip;render()};reset();
+let deferredInstall;window.addEventListener("beforeinstallprompt",e=>{e.preventDefault();deferredInstall=e;document.getElementById("install").hidden=false});document.getElementById("install").onclick=async()=>{if(deferredInstall){deferredInstall.prompt();await deferredInstall.userChoice;deferredInstall=null}};
+if("serviceWorker" in navigator)navigator.serviceWorker.register("./sw.js");
+</script></body></html><!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#24170f"><link rel="manifest" href="manifest.json"><title>Ancient Armies Chess II</title>
+<style>
+:root{--bg:#17130f;--panel:#292017;--gold:#c9a56b;--cream:#f0dfbd;--dark:#543b27;--light:#d9bb87;--accent:#8e3325}
+*{box-sizing:border-box}body{margin:0;background:radial-gradient(ellipse at top,#3b2b1b,#17130f 70%);color:var(--cream);font-family:system-ui,serif;min-height:100vh}
+main{max-width:1050px;margin:auto;padding:18px}.top{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}.brand h1{margin:0;color:var(--gold);letter-spacing:.08em;font-family:Georgia,serif}.brand p{margin:4px 0 12px;color:#b9a58a}
+.controls{display:flex;gap:8px;flex-wrap:wrap}.btn,select{background:#3a2a1c;color:var(--cream);border:1px solid #927347;border-radius:9px;padding:9px 12px;font-size:15px}.btn:hover{background:#57402b}.layout{display:grid;grid-template-columns:minmax(280px,680px) minmax(220px,1fr);gap:18px;margin-top:12px}.boardwrap{background:#211910;border:2px solid #9d7b47;padding:8px;border-radius:14px;box-shadow:0 12px 35px #0008}.board{display:grid;grid-template-columns:repeat(8,1fr;)}.board{grid-template-columns:repeat(8,1fr);aspect-ratio:1;overflow:hidden;border-radius:7px}
+.sq{position:relative;border:0;padding:0;aspect-ratio:1;display:grid;place-items:center;cursor:pointer;font-size:clamp(24px,6.7vw,64px);line-height:1}.sq.light{background:var(--light)}.sq.dark{background:var(--dark)}.sq.selected{box-shadow:inset 0 0 0 5px #e6c64e}.sq.target:after{content:"";position:absolute;width:23%;height:23%;border-radius:50%;background:#285c36aa}.sq.capture:after{content:"";position:absolute;inset:4px;border:4px solid #8e3325b9;border-radius:50%}.piece{filter:drop-shadow(1px 3px 1px #0007);transition:transform .15s}.sq:hover .piece{transform:translateY(-3px)}.white{color:#f8ebd2;text-shadow:0 2px 3px #352311,0 0 1px #111}.black{color:#21150d;text-shadow:0 1px 1px #d6b989}.coords{position:absolute;left:3px;top:2px;font-size:10px;color:#402e1d;opacity:.8}
+.sidebar{display:flex;flex-direction:column;gap:10px}.card{background:linear-gradient(135deg,#342519,#251a12);border:1px solid #715531;border-radius:12px;padding:13px}.card h2{font-size:17px;margin:0 0 9px;color:var(--gold)}#status{font-size:17px;min-height:28px}.history{max-height:260px;overflow:auto;white-space:pre-wrap;font-family:monospace;font-size:14px;color:#dfc9a6}.help{color:#b9a58a;font-size:13px;line-height:1.5}.row{display:flex;gap:7px;flex-wrap:wrap}.row button{flex:1}.foot{color:#8f7b62;text-align:center;font-size:12px;margin:12px}
+@keyframes battle{0%{transform:scale(1.1);filter:brightness(1.8)}100%{transform:scale(1);filter:brightness(1)}}.recent .piece{animation:battle .25s ease}
+@media(max-width:760px){main{padding:10px}.layout{grid-template-columns:1fr}.sidebar{display:grid;grid-template-columns:1fr 1fr}.historycard{grid-column:1/-1}.sq{font-size:clamp(27px,10vw,54px)}}
+
+/* Ancient Armies II battlefield upgrade */
+body{background:radial-gradient(ellipse at 50% 0%,#65472c 0,#2b1b10 42%,#100c09 100%)}
+.boardwrap{border:3px ridge #b58b4f;background:linear-gradient(135deg,#68472c,#25180f 30%,#6a492c);box-shadow:0 16px 38px #000a,inset 0 0 0 2px #24160d}
+.sq.light{background:linear-gradient(135deg,#ead8b3,#bd9862)}
+.sq.dark{background:linear-gradient(135deg,#69472d,#382316)}
+.sq{overflow:hidden}
+.sq .piece{filter:drop-shadow(1px 4px 2px #0009);transition:transform .18s,filter .18s}
+.sq:hover .piece{transform:translateY(-4px) scale(1.04);filter:drop-shadow(2px 7px 3px #000a)}
+@keyframes army-march{0%{transform:scale(.55) translateY(-15px);opacity:.25}70%{transform:scale(1.12)}100%{transform:scale(1);opacity:1}}
+@keyframes battle-strike{0%{filter:brightness(2.2);transform:scale(1.25)}100%{filter:brightness(1);transform:scale(1)}}
+.sq:has(circle[stroke="#166534"]) .piece{animation:army-march .25s ease-out}
+.card{background:linear-gradient(145deg,#3b281a,#21160f);border-color:#80603a;box-shadow:0 8px 20px #0005}
+.brand h1{color:#d4ad68;text-shadow:0 3px 8px #000;letter-spacing:.09em}
+.btn{background:linear-gradient(#543a25,#2d1d12);border-color:#a37d45}
+</style></head><body><main>
+<div class="top"><div class="brand"><h1>⚔ ANCIENT ARMIES II</h1><p>Command the legions. Claim the field.</p></div><div class="controls"><select id="mode"><option value="human">Two commanders</option><option value="cpu">Battle the computer</option></select><button class="btn" id="undo">↶ Undo</button><button class="btn" id="reset">⟲ New battle</button><button class="btn" id="install" hidden>⬇ Install</button></div></div>
+<div class="layout"><div class="boardwrap"><div id="board" class="board" aria-label="Chess board"></div></div><aside class="sidebar">
+<div class="card"><h2>Battle status</h2><div id="status">White to move</div></div>
+<div class="card"><h2>Army legend</h2><div class="help">♔ / ♚ Commander · ♕ / ♛ Queen<br>♖ / ♜ Fortress · ♗ / ♝ Sage<br>♘ / ♞ Cavalry · ♙ / ♟ Infantry</div></div>
+<div class="card historycard"><h2>Battle record</h2><div id="history" class="history">The armies await your command.</div></div>
+<div class="card"><h2>Controls</h2><div class="help">Select a piece, then a highlighted square. Tap a pawn on its final rank to promote. Undo rewinds one move. Sound can be toggled.</div><div class="row"><button class="btn" id="sound">Sound: off</button><button class="btn" id="flip">Flip board</button></div></div></aside></div>
+<div class="foot">Offline-ready web app · Install from Chrome's address bar/menu when hosted securely</div></main>
+<script>
+const glyph={K:"♔",Q:"♕",R:"♖",B:"♗",N:"♘",P:"♙",k:"♚",q:"♛",r:"♜",b:"♝",n:"♞",p:"♟"};
+let board=[],turn="w",rights="KQkq",ep=null,half=0,full=1,selected=null,targets=[],history=[],records=[],flip=false,sound=false,computer=false;
+const initial="rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR";
+function reset(){board=initial.split("/").flatMap(row=>{let out=[];for(const c of row){if(+c)out.push(...Array(+c).fill(null));else out.push(c)}return out});turn="w";rights="KQkq";ep=null;half=0;full=1;selected=null;targets=[];history=[];records=[];render();status();}
+function sqName(i){return "abcdefgh"[i%8]+(8-Math.floor(i/8))}
+function index(s){return (8-+s[1])*8+"abcdefgh".indexOf(s[0])}
+function color(p){return p?(p===p.toUpperCase()?"w":"b"):null}
+function clone(){return {b:board.slice(),t:turn,r:rights,e:ep,h:half,f:full}}
+function restore(s){board=s.b.slice();turn=s.t;rights=s.r;ep=s.e;half=s.h;full=s.f}
+function attacked(b,idx,by){
+ const f=idx%8,r=Math.floor(idx/8);
+ for(let rr=0;rr<8;rr++)for(let ff=0;ff<8;ff++){let p=b[rr*8+ff];if(!p||color(p)!==by)continue;let typ=p.toLowerCase(),dr=r-rr,df=f-ff;
+ if(typ==="p"&&dr===(by==="w"?-1:1)&&Math.abs(df)===1)return true;
+ if(typ==="n"&&((Math.abs(dr)===2&&Math.abs(df)===1)||(Math.abs(dr)===1&&Math.abs(df)===2)))return true;
+ if(typ==="k"&&Math.max(Math.abs(dr),Math.abs(df))===1)return true;
+ if(["b","r","q"].includes(typ)){let diagonal=Math.abs(dr)===Math.abs(df),straight=dr===0||df===0;if((typ==="b"&&!diagonal)||(typ==="r"&&!straight)||(typ==="q"&&!(diagonal||straight))||(!dr&&!df))continue;let sr=Math.sign(dr),sf=Math.sign(df),y=rr+sr,x=ff+sf,blocked=false;while(y!==r||x!==f){if(b[y*8+x]){blocked=true;break}y+=sr;x+=sf}if(!blocked)return true}
+ }return false
+}
+function king(b,c){return b.findIndex(p=>p===(c==="w"?"K":"k"))}
+function inCheck(b,c){return attacked(b,king(b,c),c==="w"?"b":"w")}
+function pseudo(s){let out=[],b=s.b,c=s.t;const add=(from,to,prom=null,extra={})=>{if(b[to]&&color(b[to])===c)return;if(b[to]&&b[to].toLowerCase()==="k")return;out.push({from,to,prom,...extra})};
+ for(let i=0;i<64;i++){let p=b[i];if(!p||color(p)!==c)continue;let typ=p.toLowerCase(),r=i>>3,f=i%8;
+ if(typ==="p"){let d=c==="w"?-1:1,rr=r+d;if(rr>=0&&rr<8&&!b[rr*8+f]){if(rr===0||rr===7){for(let q of "qrbn")add(i,rr*8+f,q)}else add(i,rr*8+f);let start=c==="w"?6:1,rr2=r+2*d;if(r===start&&!b[rr2*8+f])add(i,rr2*8+f,null,{double:true})}
+ for(let df of [-1,1]){let nf=f+df,nr=r+d;if(nf<0||nf>7||nr<0||nr>7)continue;let dest=nr*8+nf;if(b[dest]&&color(b[dest])!==c){if(nr===0||nr===7){for(let q of "qrbn")add(i,dest,q)}else add(i,dest)}else if(dest===s.e)add(i,dest,null,{ep:true})}
+ }else{let steps=typ==="n"?[[2,1],[2,-1],[-2,1],[-2,-1],[1,2],[1,-2],[-1,2],[-1,-2]]:typ==="k"?[[1,0],[-1,0],[0,1],[0,-1],[1,1],[1,-1],[-1,1],[-1,-1]]:typ==="b"?[[1,1],[1,-1],[-1,1],[-1,-1]]:typ==="r"?[[1,0],[-1,0],[0,1],[0,-1]]:[[1,0],[-1,0],[0,1],[0,-1],[1,1],[1,-1],[-1,1],[-1,-1]];
+ for(let [dr,df] of steps){let nr=r+dr,nf=f+df;while(nr>=0&&nr<8&&nf>=0&&nf<8){add(i,nr*8+nf);if(typ==="k"||typ==="n"||b[nr*8+nf])break;nr+=dr;nf+=df}}
+ if(typ==="k"&&r===(c==="w"?7:0)&&f===4&&!inCheck(b,c)){let enemy=c==="w"?"b":"w";if(s.r.includes(c==="w"?"K":"k")&&!b[i+1]&&!b[i+2]&&b[i+3]===(c==="w"?"R":"r")&&!attacked(b,i+1,enemy)&&!attacked(b,i+2,enemy))add(i,i+2,null,{castle:"k"});if(s.r.includes(c==="w"?"Q":"q")&&!b[i-1]&&!b[i-2]&&!b[i-3]&&b[i-4]===(c==="w"?"R":"r")&&!attacked(b,i-1,enemy)&&!attacked(b,i-2,enemy))add(i,i-2,null,{castle:"q"})}
+ }}
+ return out}
+function legal(s){return pseudo(s).filter(m=>{let b=s.b.slice(),p=b[m.from];b[m.to]=m.prom?(s.t==="w"?m.prom.toUpperCase():m.prom):p;b[m.from]=null;if(m.ep)b[m.to+(s.t==="w"?8:-8)]=null;if(m.castle){let rr=m.from>>3,rookfrom=m.castle==="k"?m.from+3:m.from-4,rookto=m.castle==="k"?m.from+1:m.from-1;b[rookto]=b[rookfrom];b[rookfrom]=null}return !inCheck(b,s.t)})}
+function make(m){let prev=clone(),p=board[m.from],cap=board[m.to];history.push(prev);board[m.to]=m.prom?(turn==="w"?m.prom.toUpperCase():m.prom):p;board[m.from]=null;if(m.ep){board[m.to+(turn==="w"?8:-8)]=null;cap=turn==="w"?"p":"P"}if(m.castle){let rf=m.castle==="k"?m.from+3:m.from-4,rt=m.castle==="k"?m.from+1:m.from-1;board[rt]=board[rf];board[rf]=null}
+ if(p==="K")rights=rights.replace(/[KQ]/g,"");if(p==="k")rights=rights.replace(/[kq]/g,"");const rookRights={63:"K",56:"Q",7:"k",0:"q"};if(p.toLowerCase()==="r")rights=rights.replace(rookRights[m.from]||"","");if(cap&&cap.toLowerCase()==="r")rights=rights.replace(rookRights[m.to]||"","");ep=m.double?((m.from+m.to)/2):null;half=p.toLowerCase()==="p"||cap?0:half+1;if(turn==="b")full++;turn=turn==="w"?"b":"w";records.push((full-(turn==="w"?1:0))+(prev.t==="w"?". ":"... ")+notation(prev,m));selected=null;targets=[];render();status();if(sound)beep();if(computer&&turn==="b"&&!terminal())setTimeout(cpuMove,450)}
+function notation(s,m){let p=s.b[m.from],cap=s.b[m.to]||m.ep,txt=m.castle?(m.castle==="k"?"O-O":"O-O-O"):(p.toLowerCase()==="p"?(cap?sqName(m.from)[0]+"x":"")+sqName(m.to):p.toUpperCase()+(cap?"x":"")+sqName(m.to))+(m.prom?"="+m.prom.toUpperCase():"");let next=clone(),moves=legal(next);if(inCheck(board,turn))txt+=moves.length?" +":" #";return txt}
+function terminal(){let ms=legal(clone());return ms.length===0||half>=100}
+function status(){let ms=legal(clone()),check=inCheck(board,turn),txt;if(!ms.length)txt=check?"CHECKMATE — "+(turn==="w"?"Black":"White")+" wins!":"Draw — stalemate";else if(half>=100)txt="Draw claim available — 50 move rule";else txt=(turn==="w"?"White":"Black")+" to move"+(check?" — CHECK":"");document.getElementById("status").textContent=txt;document.getElementById("history").textContent=records.length?records.join("  "):"The armies await your command."}
+function render(){let el=document.getElementById("board");el.innerHTML="";let moves=selected===null?[]:legal(clone()).filter(m=>m.from===selected);targets=moves.map(m=>m.to);for(let n=0;n<64;n++){let i=flip?63-n:n,cell=document.createElement("button");cell.className="sq "+(((i>>3)+(i&7))%2?"dark":"light");if(i===selected)cell.classList.add("selected");if(targets.includes(i))cell.classList.add(board[i]?"capture":"target");let p=board[i];if(p){let sp=document.createElement("span");sp.className="piece "+(color(p)==="w"?"white":"black");sp.textContent=glyph[p];cell.append(sp)}let co=document.createElement("span");co.className="coords";co.textContent=(i%8===0?8-(i>>3):"")+(i>>3===7?"abcdefgh"[i%8]:"");cell.append(co);cell.onclick=()=>click(i);el.append(cell)}}
+function click(i){if(computer&&turn==="b")return;let ms=legal(clone());if(selected!==null){let opts=ms.filter(m=>m.from===selected&&m.to===i);if(opts.length){let m=opts[0];if(opts.length>1){let choice=prompt("Promote to: Q, R, B, or N","Q");m=opts.find(x=>x.prom===(choice||"Q").toLowerCase())||opts[0]}make(m);return}}
+ if(board[i]&&color(board[i])===turn){selected=i;render()}else{selected=null;render()}}
+function cpuMove(){if(turn!=="b"||!computer)return;let ms=legal(clone());if(!ms.length)return;let scored=ms.map(m=>({m,s:(board[m.to]?({p:1,n:3,b:3,r:5,q:9,k:99}[board[m.to].toLowerCase()]||0):0)+(m.prom?8:0)+Math.random()*1.8})).sort((a,b)=>b.s-a.s);make(scored[0].m)}
+function beep(){try{let a=new AudioContext(),o=a.createOscillator(),g=a.createGain();o.connect(g);g.connect(a.destination);o.frequency.value=220;g.gain.value=.04;o.start();o.stop(a.currentTime+.06)}catch{}}
+document.getElementById("reset").onclick=reset;document.getElementById("undo").onclick=()=>{if(history.length){restore(history.pop());records.pop();selected=null;render();status();if(computer&&turn==="w"&&history.length) {}}};document.getElementById("mode").onchange=e=>{computer=e.target.value==="cpu";reset()};document.getElementById("sound").onclick=e=>{sound=!sound;e.target.textContent="Sound: "+(sound?"on":"off")};document.getElementById("flip").onclick=()=>{flip=!flip;render()};reset();
+let deferredInstall;window.addEventListener("beforeinstallprompt",e=>{e.preventDefault();deferredInstall=e;document.getElementById("install").hidden=false});document.getElementById("install").onclick=async()=>{if(deferredInstall){deferredInstall.prompt();await deferredInstall.userChoice;deferredInstall=null}};
+if("serviceWorker" in navigator)navigator.serviceWorker.register("./sw.js");
+</script></body></html><!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#24170f"><link rel="manifest" href="manifest.json"><title>Ancient Armies Chess II</title>
+<style>
+:root{--bg:#17130f;--panel:#292017;--gold:#c9a56b;--cream:#f0dfbd;--dark:#543b27;--light:#d9bb87;--accent:#8e3325}
+*{box-sizing:border-box}body{margin:0;background:radial-gradient(ellipse at top,#3b2b1b,#17130f 70%);color:var(--cream);font-family:system-ui,serif;min-height:100vh}
+main{max-width:1050px;margin:auto;padding:18px}.top{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}.brand h1{margin:0;color:var(--gold);letter-spacing:.08em;font-family:Georgia,serif}.brand p{margin:4px 0 12px;color:#b9a58a}
+.controls{display:flex;gap:8px;flex-wrap:wrap}.btn,select{background:#3a2a1c;color:var(--cream);border:1px solid #927347;border-radius:9px;padding:9px 12px;font-size:15px}.btn:hover{background:#57402b}.layout{display:grid;grid-template-columns:minmax(280px,680px) minmax(220px,1fr);gap:18px;margin-top:12px}.boardwrap{background:#211910;border:2px solid #9d7b47;padding:8px;border-radius:14px;box-shadow:0 12px 35px #0008}.board{display:grid;grid-template-columns:repeat(8,1fr;)}.board{grid-template-columns:repeat(8,1fr);aspect-ratio:1;overflow:hidden;border-radius:7px}
+.sq{position:relative;border:0;padding:0;aspect-ratio:1;display:grid;place-items:center;cursor:pointer;font-size:clamp(24px,6.7vw,64px);line-height:1}.sq.light{background:var(--light)}.sq.dark{background:var(--dark)}.sq.selected{box-shadow:inset 0 0 0 5px #e6c64e}.sq.target:after{content:"";position:absolute;width:23%;height:23%;border-radius:50%;background:#285c36aa}.sq.capture:after{content:"";position:absolute;inset:4px;border:4px solid #8e3325b9;border-radius:50%}.piece{filter:drop-shadow(1px 3px 1px #0007);transition:transform .15s}.sq:hover .piece{transform:translateY(-3px)}.white{color:#f8ebd2;text-shadow:0 2px 3px #352311,0 0 1px #111}.black{color:#21150d;text-shadow:0 1px 1px #d6b989}.coords{position:absolute;left:3px;top:2px;font-size:10px;color:#402e1d;opacity:.8}
+.sidebar{display:flex;flex-direction:column;gap:10px}.card{background:linear-gradient(135deg,#342519,#251a12);border:1px solid #715531;border-radius:12px;padding:13px}.card h2{font-size:17px;margin:0 0 9px;color:var(--gold)}#status{font-size:17px;min-height:28px}.history{max-height:260px;overflow:auto;white-space:pre-wrap;font-family:monospace;font-size:14px;color:#dfc9a6}.help{color:#b9a58a;font-size:13px;line-height:1.5}.row{display:flex;gap:7px;flex-wrap:wrap}.row button{flex:1}.foot{color:#8f7b62;text-align:center;font-size:12px;margin:12px}
+@keyframes battle{0%{transform:scale(1.1);filter:brightness(1.8)}100%{transform:scale(1);filter:brightness(1)}}.recent .piece{animation:battle .25s ease}
+@media(max-width:760px){main{padding:10px}.layout{grid-template-columns:1fr}.sidebar{display:grid;grid-template-columns:1fr 1fr}.historycard{grid-column:1/-1}.sq{font-size:clamp(27px,10vw,54px)}}
+
+/* Ancient Armies II battlefield upgrade */
+body{background:radial-gradient(ellipse at 50% 0%,#65472c 0,#2b1b10 42%,#100c09 100%)}
+.boardwrap{border:3px ridge #b58b4f;background:linear-gradient(135deg,#68472c,#25180f 30%,#6a492c);box-shadow:0 16px 38px #000a,inset 0 0 0 2px #24160d}
+.sq.light{background:linear-gradient(135deg,#ead8b3,#bd9862)}
+.sq.dark{background:linear-gradient(135deg,#69472d,#382316)}
+.sq{overflow:hidden}
+.sq .piece{filter:drop-shadow(1px 4px 2px #0009);transition:transform .18s,filter .18s}
+.sq:hover .piece{transform:translateY(-4px) scale(1.04);filter:drop-shadow(2px 7px 3px #000a)}
+@keyframes army-march{0%{transform:scale(.55) translateY(-15px);opacity:.25}70%{transform:scale(1.12)}100%{transform:scale(1);opacity:1}}
+@keyframes battle-strike{0%{filter:brightness(2.2);transform:scale(1.25)}100%{filter:brightness(1);transform:scale(1)}}
+.sq:has(circle[stroke="#166534"]) .piece{animation:army-march .25s ease-out}
+.card{background:linear-gradient(145deg,#3b281a,#21160f);border-color:#80603a;box-shadow:0 8px 20px #0005}
+.brand h1{color:#d4ad68;text-shadow:0 3px 8px #000;letter-spacing:.09em}
+.btn{background:linear-gradient(#543a25,#2d1d12);border-color:#a37d45}
+</style></head><body><main>
+<div class="top"><div class="brand"><h1>⚔ ANCIENT ARMIES II</h1><p>Command the legions. Claim the field.</p></div><div class="controls"><select id="mode"><option value="human">Two commanders</option><option value="cpu">Battle the computer</option></select><button class="btn" id="undo">↶ Undo</button><button class="btn" id="reset">⟲ New battle</button><button class="btn" id="install" hidden>⬇ Install</button></div></div>
+<div class="layout"><div class="boardwrap"><div id="board" class="board" aria-label="Chess board"></div></div><aside class="sidebar">
+<div class="card"><h2>Battle status</h2><div id="status">White to move</div></div>
+<div class="card"><h2>Army legend</h2><div class="help">♔ / ♚ Commander · ♕ / ♛ Queen<br>♖ / ♜ Fortress · ♗ / ♝ Sage<br>♘ / ♞ Cavalry · ♙ / ♟ Infantry</div></div>
+<div class="card historycard"><h2>Battle record</h2><div id="history" class="history">The armies await your command.</div></div>
+<div class="card"><h2>Controls</h2><div class="help">Select a piece, then a highlighted square. Tap a pawn on its final rank to promote. Undo rewinds one move. Sound can be toggled.</div><div class="row"><button class="btn" id="sound">Sound: off</button><button class="btn" id="flip">Flip board</button></div></div></aside></div>
+<div class="foot">Offline-ready web app · Install from Chrome's address bar/menu when hosted securely</div></main>
+<script>
+const glyph={K:"♔",Q:"♕",R:"♖",B:"♗",N:"♘",P:"♙",k:"♚",q:"♛",r:"♜",b:"♝",n:"♞",p:"♟"};
+let board=[],turn="w",rights="KQkq",ep=null,half=0,full=1,selected=null,targets=[],history=[],records=[],flip=false,sound=false,computer=false;
+const initial="rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR";
+function reset(){board=initial.split("/").flatMap(row=>{let out=[];for(const c of row){if(+c)out.push(...Array(+c).fill(null));else out.push(c)}return out});turn="w";rights="KQkq";ep=null;half=0;full=1;selected=null;targets=[];history=[];records=[];render();status();}
+function sqName(i){return "abcdefgh"[i%8]+(8-Math.floor(i/8))}
+function index(s){return (8-+s[1])*8+"abcdefgh".indexOf(s[0])}
+function color(p){return p?(p===p.toUpperCase()?"w":"b"):null}
+function clone(){return {b:board.slice(),t:turn,r:rights,e:ep,h:half,f:full}}
+function restore(s){board=s.b.slice();turn=s.t;rights=s.r;ep=s.e;half=s.h;full=s.f}
+function attacked(b,idx,by){
+ const f=idx%8,r=Math.floor(idx/8);
+ for(let rr=0;rr<8;rr++)for(let ff=0;ff<8;ff++){let p=b[rr*8+ff];if(!p||color(p)!==by)continue;let typ=p.toLowerCase(),dr=r-rr,df=f-ff;
+ if(typ==="p"&&dr===(by==="w"?-1:1)&&Math.abs(df)===1)return true;
+ if(typ==="n"&&((Math.abs(dr)===2&&Math.abs(df)===1)||(Math.abs(dr)===1&&Math.abs(df)===2)))return true;
+ if(typ==="k"&&Math.max(Math.abs(dr),Math.abs(df))===1)return true;
+ if(["b","r","q"].includes(typ)){let diagonal=Math.abs(dr)===Math.abs(df),straight=dr===0||df===0;if((typ==="b"&&!diagonal)||(typ==="r"&&!straight)||(typ==="q"&&!(diagonal||straight))||(!dr&&!df))continue;let sr=Math.sign(dr),sf=Math.sign(df),y=rr+sr,x=ff+sf,blocked=false;while(y!==r||x!==f){if(b[y*8+x]){blocked=true;break}y+=sr;x+=sf}if(!blocked)return true}
+ }return false
+}
+function king(b,c){return b.findIndex(p=>p===(c==="w"?"K":"k"))}
+function inCheck(b,c){return attacked(b,king(b,c),c==="w"?"b":"w")}
+function pseudo(s){let out=[],b=s.b,c=s.t;const add=(from,to,prom=null,extra={})=>{if(b[to]&&color(b[to])===c)return;if(b[to]&&b[to].toLowerCase()==="k")return;out.push({from,to,prom,...extra})};
+ for(let i=0;i<64;i++){let p=b[i];if(!p||color(p)!==c)continue;let typ=p.toLowerCase(),r=i>>3,f=i%8;
+ if(typ==="p"){let d=c==="w"?-1:1,rr=r+d;if(rr>=0&&rr<8&&!b[rr*8+f]){if(rr===0||rr===7){for(let q of "qrbn")add(i,rr*8+f,q)}else add(i,rr*8+f);let start=c==="w"?6:1,rr2=r+2*d;if(r===start&&!b[rr2*8+f])add(i,rr2*8+f,null,{double:true})}
+ for(let df of [-1,1]){let nf=f+df,nr=r+d;if(nf<0||nf>7||nr<0||nr>7)continue;let dest=nr*8+nf;if(b[dest]&&color(b[dest])!==c){if(nr===0||nr===7){for(let q of "qrbn")add(i,dest,q)}else add(i,dest)}else if(dest===s.e)add(i,dest,null,{ep:true})}
+ }else{let steps=typ==="n"?[[2,1],[2,-1],[-2,1],[-2,-1],[1,2],[1,-2],[-1,2],[-1,-2]]:typ==="k"?[[1,0],[-1,0],[0,1],[0,-1],[1,1],[1,-1],[-1,1],[-1,-1]]:typ==="b"?[[1,1],[1,-1],[-1,1],[-1,-1]]:typ==="r"?[[1,0],[-1,0],[0,1],[0,-1]]:[[1,0],[-1,0],[0,1],[0,-1],[1,1],[1,-1],[-1,1],[-1,-1]];
+ for(let [dr,df] of steps){let nr=r+dr,nf=f+df;while(nr>=0&&nr<8&&nf>=0&&nf<8){add(i,nr*8+nf);if(typ==="k"||typ==="n"||b[nr*8+nf])break;nr+=dr;nf+=df}}
+ if(typ==="k"&&r===(c==="w"?7:0)&&f===4&&!inCheck(b,c)){let enemy=c==="w"?"b":"w";if(s.r.includes(c==="w"?"K":"k")&&!b[i+1]&&!b[i+2]&&b[i+3]===(c==="w"?"R":"r")&&!attacked(b,i+1,enemy)&&!attacked(b,i+2,enemy))add(i,i+2,null,{castle:"k"});if(s.r.includes(c==="w"?"Q":"q")&&!b[i-1]&&!b[i-2]&&!b[i-3]&&b[i-4]===(c==="w"?"R":"r")&&!attacked(b,i-1,enemy)&&!attacked(b,i-2,enemy))add(i,i-2,null,{castle:"q"})}
+ }}
+ return out}
+function legal(s){return pseudo(s).filter(m=>{let b=s.b.slice(),p=b[m.from];b[m.to]=m.prom?(s.t==="w"?m.prom.toUpperCase():m.prom):p;b[m.from]=null;if(m.ep)b[m.to+(s.t==="w"?8:-8)]=null;if(m.castle){let rr=m.from>>3,rookfrom=m.castle==="k"?m.from+3:m.from-4,rookto=m.castle==="k"?m.from+1:m.from-1;b[rookto]=b[rookfrom];b[rookfrom]=null}return !inCheck(b,s.t)})}
+function make(m){let prev=clone(),p=board[m.from],cap=board[m.to];history.push(prev);board[m.to]=m.prom?(turn==="w"?m.prom.toUpperCase():m.prom):p;board[m.from]=null;if(m.ep){board[m.to+(turn==="w"?8:-8)]=null;cap=turn==="w"?"p":"P"}if(m.castle){let rf=m.castle==="k"?m.from+3:m.from-4,rt=m.castle==="k"?m.from+1:m.from-1;board[rt]=board[rf];board[rf]=null}
+ if(p==="K")rights=rights.replace(/[KQ]/g,"");if(p==="k")rights=rights.replace(/[kq]/g,"");const rookRights={63:"K",56:"Q",7:"k",0:"q"};if(p.toLowerCase()==="r")rights=rights.replace(rookRights[m.from]||"","");if(cap&&cap.toLowerCase()==="r")rights=rights.replace(rookRights[m.to]||"","");ep=m.double?((m.from+m.to)/2):null;half=p.toLowerCase()==="p"||cap?0:half+1;if(turn==="b")full++;turn=turn==="w"?"b":"w";records.push((full-(turn==="w"?1:0))+(prev.t==="w"?". ":"... ")+notation(prev,m));selected=null;targets=[];render();status();if(sound)beep();if(computer&&turn==="b"&&!terminal())setTimeout(cpuMove,450)}
+function notation(s,m){let p=s.b[m.from],cap=s.b[m.to]||m.ep,txt=m.castle?(m.castle==="k"?"O-O":"O-O-O"):(p.toLowerCase()==="p"?(cap?sqName(m.from)[0]+"x":"")+sqName(m.to):p.toUpperCase()+(cap?"x":"")+sqName(m.to))+(m.prom?"="+m.prom.toUpperCase():"");let next=clone(),moves=legal(next);if(inCheck(board,turn))txt+=moves.length?" +":" #";return txt}
+function terminal(){let ms=legal(clone());return ms.length===0||half>=100}
+function status(){let ms=legal(clone()),check=inCheck(board,turn),txt;if(!ms.length)txt=check?"CHECKMATE — "+(turn==="w"?"Black":"White")+" wins!":"Draw — stalemate";else if(half>=100)txt="Draw claim available — 50 move rule";else txt=(turn==="w"?"White":"Black")+" to move"+(check?" — CHECK":"");document.getElementById("status").textContent=txt;document.getElementById("history").textContent=records.length?records.join("  "):"The armies await your command."}
+function render(){let el=document.getElementById("board");el.innerHTML="";let moves=selected===null?[]:legal(clone()).filter(m=>m.from===selected);targets=moves.map(m=>m.to);for(let n=0;n<64;n++){let i=flip?63-n:n,cell=document.createElement("button");cell.className="sq "+(((i>>3)+(i&7))%2?"dark":"light");if(i===selected)cell.classList.add("selected");if(targets.includes(i))cell.classList.add(board[i]?"capture":"target");let p=board[i];if(p){let sp=document.createElement("span");sp.className="piece "+(color(p)==="w"?"white":"black");sp.textContent=glyph[p];cell.append(sp)}let co=document.createElement("span");co.className="coords";co.textContent=(i%8===0?8-(i>>3):"")+(i>>3===7?"abcdefgh"[i%8]:"");cell.append(co);cell.onclick=()=>click(i);el.append(cell)}}
+function click(i){if(computer&&turn==="b")return;let ms=legal(clone());if(selected!==null){let opts=ms.filter(m=>m.from===selected&&m.to===i);if(opts.length){let m=opts[0];if(opts.length>1){let choice=prompt("Promote to: Q, R, B, or N","Q");m=opts.find(x=>x.prom===(choice||"Q").toLowerCase())||opts[0]}make(m);return}}
+ if(board[i]&&color(board[i])===turn){selected=i;render()}else{selected=null;render()}}
+function cpuMove(){if(turn!=="b"||!computer)return;let ms=legal(clone());if(!ms.length)return;let scored=ms.map(m=>({m,s:(board[m.to]?({p:1,n:3,b:3,r:5,q:9,k:99}[board[m.to].toLowerCase()]||0):0)+(m.prom?8:0)+Math.random()*1.8})).sort((a,b)=>b.s-a.s);make(scored[0].m)}
+function beep(){try{let a=new AudioContext(),o=a.createOscillator(),g=a.createGain();o.connect(g);g.connect(a.destination);o.frequency.value=220;g.gain.value=.04;o.start();o.stop(a.currentTime+.06)}catch{}}
+document.getElementById("reset").onclick=reset;document.getElementById("undo").onclick=()=>{if(history.length){restore(history.pop());records.pop();selected=null;render();status();if(computer&&turn==="w"&&history.length) {}}};document.getElementById("mode").onchange=e=>{computer=e.target.value==="cpu";reset()};document.getElementById("sound").onclick=e=>{sound=!sound;e.target.textContent="Sound: "+(sound?"on":"off")};document.getElementById("flip").onclick=()=>{flip=!flip;render()};reset();
+let deferredInstall;window.addEventListener("beforeinstallprompt",e=>{e.preventDefault();deferredInstall=e;document.getElementById("install").hidden=false});document.getElementById("install").onclick=async()=>{if(deferredInstall){deferredInstall.prompt();await deferredInstall.userChoice;deferredInstall=null}};
+if("serviceWorker" in navigator)navigator.serviceWorker.register("./sw.js");
+</script></body></html><!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#24170f"><link rel="manifest" href="manifest.json"><title>Ancient Armies Chess II</title>
+<style>
+:root{--bg:#17130f;--panel:#292017;--gold:#c9a56b;--cream:#f0dfbd;--dark:#543b27;--light:#d9bb87;--accent:#8e3325}
+*{box-sizing:border-box}body{margin:0;background:radial-gradient(ellipse at top,#3b2b1b,#17130f 70%);color:var(--cream);font-family:system-ui,serif;min-height:100vh}
+main{max-width:1050px;margin:auto;padding:18px}.top{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}.brand h1{margin:0;color:var(--gold);letter-spacing:.08em;font-family:Georgia,serif}.brand p{margin:4px 0 12px;color:#b9a58a}
+.controls{display:flex;gap:8px;flex-wrap:wrap}.btn,select{background:#3a2a1c;color:var(--cream);border:1px solid #927347;border-radius:9px;padding:9px 12px;font-size:15px}.btn:hover{background:#57402b}.layout{display:grid;grid-template-columns:minmax(280px,680px) minmax(220px,1fr);gap:18px;margin-top:12px}.boardwrap{background:#211910;border:2px solid #9d7b47;padding:8px;border-radius:14px;box-shadow:0 12px 35px #0008}.board{display:grid;grid-template-columns:repeat(8,1fr;)}.board{grid-template-columns:repeat(8,1fr);aspect-ratio:1;overflow:hidden;border-radius:7px}
+.sq{position:relative;border:0;padding:0;aspect-ratio:1;display:grid;place-items:center;cursor:pointer;font-size:clamp(24px,6.7vw,64px);line-height:1}.sq.light{background:var(--light)}.sq.dark{background:var(--dark)}.sq.selected{box-shadow:inset 0 0 0 5px #e6c64e}.sq.target:after{content:"";position:absolute;width:23%;height:23%;border-radius:50%;background:#285c36aa}.sq.capture:after{content:"";position:absolute;inset:4px;border:4px solid #8e3325b9;border-radius:50%}.piece{filter:drop-shadow(1px 3px 1px #0007);transition:transform .15s}.sq:hover .piece{transform:translateY(-3px)}.white{color:#f8ebd2;text-shadow:0 2px 3px #352311,0 0 1px #111}.black{color:#21150d;text-shadow:0 1px 1px #d6b989}.coords{position:absolute;left:3px;top:2px;font-size:10px;color:#402e1d;opacity:.8}
+.sidebar{display:flex;flex-direction:column;gap:10px}.card{background:linear-gradient(135deg,#342519,#251a12);border:1px solid #715531;border-radius:12px;padding:13px}.card h2{font-size:17px;margin:0 0 9px;color:var(--gold)}#status{font-size:17px;min-height:28px}.history{max-height:260px;overflow:auto;white-space:pre-wrap;font-family:monospace;font-size:14px;color:#dfc9a6}.help{color:#b9a58a;font-size:13px;line-height:1.5}.row{display:flex;gap:7px;flex-wrap:wrap}.row button{flex:1}.foot{color:#8f7b62;text-align:center;font-size:12px;margin:12px}
+@keyframes battle{0%{transform:scale(1.1);filter:brightness(1.8)}100%{transform:scale(1);filter:brightness(1)}}.recent .piece{animation:battle .25s ease}
+@media(max-width:760px){main{padding:10px}.layout{grid-template-columns:1fr}.sidebar{display:grid;grid-template-columns:1fr 1fr}.historycard{grid-column:1/-1}.sq{font-size:clamp(27px,10vw,54px)}}
+
+/* Ancient Armies II battlefield upgrade */
+body{background:radial-gradient(ellipse at 50% 0%,#65472c 0,#2b1b10 42%,#100c09 100%)}
+.boardwrap{border:3px ridge #b58b4f;background:linear-gradient(135deg,#68472c,#25180f 30%,#6a492c);box-shadow:0 16px 38px #000a,inset 0 0 0 2px #24160d}
+.sq.light{background:linear-gradient(135deg,#ead8b3,#bd9862)}
+.sq.dark{background:linear-gradient(135deg,#69472d,#382316)}
+.sq{overflow:hidden}
+.sq .piece{filter:drop-shadow(1px 4px 2px #0009);transition:transform .18s,filter .18s}
+.sq:hover .piece{transform:translateY(-4px) scale(1.04);filter:drop-shadow(2px 7px 3px #000a)}
+@keyframes army-march{0%{transform:scale(.55) translateY(-15px);opacity:.25}70%{transform:scale(1.12)}100%{transform:scale(1);opacity:1}}
+@keyframes battle-strike{0%{filter:brightness(2.2);transform:scale(1.25)}100%{filter:brightness(1);transform:scale(1)}}
+.sq:has(circle[stroke="#166534"]) .piece{animation:army-march .25s ease-out}
+.card{background:linear-gradient(145deg,#3b281a,#21160f);border-color:#80603a;box-shadow:0 8px 20px #0005}
+.brand h1{color:#d4ad68;text-shadow:0 3px 8px #000;letter-spacing:.09em}
+.btn{background:linear-gradient(#543a25,#2d1d12);border-color:#a37d45}
+</style></head><body><main>
+<div class="top"><div class="brand"><h1>⚔ ANCIENT ARMIES II</h1><p>Command the legions. Claim the field.</p></div><div class="controls"><select id="mode"><option value="human">Two commanders</option><option value="cpu">Battle the computer</option></select><button class="btn" id="undo">↶ Undo</button><button class="btn" id="reset">⟲ New battle</button><button class="btn" id="install" hidden>⬇ Install</button></div></div>
+<div class="layout"><div class="boardwrap"><div id="board" class="board" aria-label="Chess board"></div></div><aside class="sidebar">
+<div class="card"><h2>Battle status</h2><div id="status">White to move</div></div>
+<div class="card"><h2>Army legend</h2><div class="help">♔ / ♚ Commander · ♕ / ♛ Queen<br>♖ / ♜ Fortress · ♗ / ♝ Sage<br>♘ / ♞ Cavalry · ♙ / ♟ Infantry</div></div>
+<div class="card historycard"><h2>Battle record</h2><div id="history" class="history">The armies await your command.</div></div>
+<div class="card"><h2>Controls</h2><div class="help">Select a piece, then a highlighted square. Tap a pawn on its final rank to promote. Undo rewinds one move. Sound can be toggled.</div><div class="row"><button class="btn" id="sound">Sound: off</button><button class="btn" id="flip">Flip board</button></div></div></aside></div>
+<div class="foot">Offline-ready web app · Install from Chrome's address bar/menu when hosted securely</div></main>
+<script>
+const glyph={K:"♔",Q:"♕",R:"♖",B:"♗",N:"♘",P:"♙",k:"♚",q:"♛",r:"♜",b:"♝",n:"♞",p:"♟"};
+let board=[],turn="w",rights="KQkq",ep=null,half=0,full=1,selected=null,targets=[],history=[],records=[],flip=false,sound=false,computer=false;
+const initial="rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR";
+function reset(){board=initial.split("/").flatMap(row=>{let out=[];for(const c of row){if(+c)out.push(...Array(+c).fill(null));else out.push(c)}return out});turn="w";rights="KQkq";ep=null;half=0;full=1;selected=null;targets=[];history=[];records=[];render();status();}
+function sqName(i){return "abcdefgh"[i%8]+(8-Math.floor(i/8))}
+function index(s){return (8-+s[1])*8+"abcdefgh".indexOf(s[0])}
+function color(p){return p?(p===p.toUpperCase()?"w":"b"):null}
+function clone(){return {b:board.slice(),t:turn,r:rights,e:ep,h:half,f:full}}
+function restore(s){board=s.b.slice();turn=s.t;rights=s.r;ep=s.e;half=s.h;full=s.f}
+function attacked(b,idx,by){
+ const f=idx%8,r=Math.floor(idx/8);
+ for(let rr=0;rr<8;rr++)for(let ff=0;ff<8;ff++){let p=b[rr*8+ff];if(!p||color(p)!==by)continue;let typ=p.toLowerCase(),dr=r-rr,df=f-ff;
+ if(typ==="p"&&dr===(by==="w"?-1:1)&&Math.abs(df)===1)return true;
+ if(typ==="n"&&((Math.abs(dr)===2&&Math.abs(df)===1)||(Math.abs(dr)===1&&Math.abs(df)===2)))return true;
+ if(typ==="k"&&Math.max(Math.abs(dr),Math.abs(df))===1)return true;
+ if(["b","r","q"].includes(typ)){let diagonal=Math.abs(dr)===Math.abs(df),straight=dr===0||df===0;if((typ==="b"&&!diagonal)||(typ==="r"&&!straight)||(typ==="q"&&!(diagonal||straight))||(!dr&&!df))continue;let sr=Math.sign(dr),sf=Math.sign(df),y=rr+sr,x=ff+sf,blocked=false;while(y!==r||x!==f){if(b[y*8+x]){blocked=true;break}y+=sr;x+=sf}if(!blocked)return true}
+ }return false
+}
+function king(b,c){return b.findIndex(p=>p===(c==="w"?"K":"k"))}
+function inCheck(b,c){return attacked(b,king(b,c),c==="w"?"b":"w")}
+function pseudo(s){let out=[],b=s.b,c=s.t;const add=(from,to,prom=null,extra={})=>{if(b[to]&&color(b[to])===c)return;if(b[to]&&b[to].toLowerCase()==="k")return;out.push({from,to,prom,...extra})};
+ for(let i=0;i<64;i++){let p=b[i];if(!p||color(p)!==c)continue;let typ=p.toLowerCase(),r=i>>3,f=i%8;
+ if(typ==="p"){let d=c==="w"?-1:1,rr=r+d;if(rr>=0&&rr<8&&!b[rr*8+f]){if(rr===0||rr===7){for(let q of "qrbn")add(i,rr*8+f,q)}else add(i,rr*8+f);let start=c==="w"?6:1,rr2=r+2*d;if(r===start&&!b[rr2*8+f])add(i,rr2*8+f,null,{double:true})}
+ for(let df of [-1,1]){let nf=f+df,nr=r+d;if(nf<0||nf>7||nr<0||nr>7)continue;let dest=nr*8+nf;if(b[dest]&&color(b[dest])!==c){if(nr===0||nr===7){for(let q of "qrbn")add(i,dest,q)}else add(i,dest)}else if(dest===s.e)add(i,dest,null,{ep:true})}
+ }else{let steps=typ==="n"?[[2,1],[2,-1],[-2,1],[-2,-1],[1,2],[1,-2],[-1,2],[-1,-2]]:typ==="k"?[[1,0],[-1,0],[0,1],[0,-1],[1,1],[1,-1],[-1,1],[-1,-1]]:typ==="b"?[[1,1],[1,-1],[-1,1],[-1,-1]]:typ==="r"?[[1,0],[-1,0],[0,1],[0,-1]]:[[1,0],[-1,0],[0,1],[0,-1],[1,1],[1,-1],[-1,1],[-1,-1]];
+ for(let [dr,df] of steps){let nr=r+dr,nf=f+df;while(nr>=0&&nr<8&&nf>=0&&nf<8){add(i,nr*8+nf);if(typ==="k"||typ==="n"||b[nr*8+nf])break;nr+=dr;nf+=df}}
+ if(typ==="k"&&r===(c==="w"?7:0)&&f===4&&!inCheck(b,c)){let enemy=c==="w"?"b":"w";if(s.r.includes(c==="w"?"K":"k")&&!b[i+1]&&!b[i+2]&&b[i+3]===(c==="w"?"R":"r")&&!attacked(b,i+1,enemy)&&!attacked(b,i+2,enemy))add(i,i+2,null,{castle:"k"});if(s.r.includes(c==="w"?"Q":"q")&&!b[i-1]&&!b[i-2]&&!b[i-3]&&b[i-4]===(c==="w"?"R":"r")&&!attacked(b,i-1,enemy)&&!attacked(b,i-2,enemy))add(i,i-2,null,{castle:"q"})}
+ }}
+ return out}
+function legal(s){return pseudo(s).filter(m=>{let b=s.b.slice(),p=b[m.from];b[m.to]=m.prom?(s.t==="w"?m.prom.toUpperCase():m.prom):p;b[m.from]=null;if(m.ep)b[m.to+(s.t==="w"?8:-8)]=null;if(m.castle){let rr=m.from>>3,rookfrom=m.castle==="k"?m.from+3:m.from-4,rookto=m.castle==="k"?m.from+1:m.from-1;b[rookto]=b[rookfrom];b[rookfrom]=null}return !inCheck(b,s.t)})}
+function make(m){let prev=clone(),p=board[m.from],cap=board[m.to];history.push(prev);board[m.to]=m.prom?(turn==="w"?m.prom.toUpperCase():m.prom):p;board[m.from]=null;if(m.ep){board[m.to+(turn==="w"?8:-8)]=null;cap=turn==="w"?"p":"P"}if(m.castle){let rf=m.castle==="k"?m.from+3:m.from-4,rt=m.castle==="k"?m.from+1:m.from-1;board[rt]=board[rf];board[rf]=null}
+ if(p==="K")rights=rights.replace(/[KQ]/g,"");if(p==="k")rights=rights.replace(/[kq]/g,"");const rookRights={63:"K",56:"Q",7:"k",0:"q"};if(p.toLowerCase()==="r")rights=rights.replace(rookRights[m.from]||"","");if(cap&&cap.toLowerCase()==="r")rights=rights.replace(rookRights[m.to]||"","");ep=m.double?((m.from+m.to)/2):null;half=p.toLowerCase()==="p"||cap?0:half+1;if(turn==="b")full++;turn=turn==="w"?"b":"w";records.push((full-(turn==="w"?1:0))+(prev.t==="w"?". ":"... ")+notation(prev,m));selected=null;targets=[];render();status();if(sound)beep();if(computer&&turn==="b"&&!terminal())setTimeout(cpuMove,450)}
+function notation(s,m){let p=s.b[m.from],cap=s.b[m.to]||m.ep,txt=m.castle?(m.castle==="k"?"O-O":"O-O-O"):(p.toLowerCase()==="p"?(cap?sqName(m.from)[0]+"x":"")+sqName(m.to):p.toUpperCase()+(cap?"x":"")+sqName(m.to))+(m.prom?"="+m.prom.toUpperCase():"");let next=clone(),moves=legal(next);if(inCheck(board,turn))txt+=moves.length?" +":" #";return txt}
+function terminal(){let ms=legal(clone());return ms.length===0||half>=100}
+function status(){let ms=legal(clone()),check=inCheck(board,turn),txt;if(!ms.length)txt=check?"CHECKMATE — "+(turn==="w"?"Black":"White")+" wins!":"Draw — stalemate";else if(half>=100)txt="Draw claim available — 50 move rule";else txt=(turn==="w"?"White":"Black")+" to move"+(check?" — CHECK":"");document.getElementById("status").textContent=txt;document.getElementById("history").textContent=records.length?records.join("  "):"The armies await your command."}
+function render(){let el=document.getElementById("board");el.innerHTML="";let moves=selected===null?[]:legal(clone()).filter(m=>m.from===selected);targets=moves.map(m=>m.to);for(let n=0;n<64;n++){let i=flip?63-n:n,cell=document.createElement("button");cell.className="sq "+(((i>>3)+(i&7))%2?"dark":"light");if(i===selected)cell.classList.add("selected");if(targets.includes(i))cell.classList.add(board[i]?"capture":"target");let p=board[i];if(p){let sp=document.createElement("span");sp.className="piece "+(color(p)==="w"?"white":"black");sp.textContent=glyph[p];cell.append(sp)}let co=document.createElement("span");co.className="coords";co.textContent=(i%8===0?8-(i>>3):"")+(i>>3===7?"abcdefgh"[i%8]:"");cell.append(co);cell.onclick=()=>click(i);el.append(cell)}}
+function click(i){if(computer&&turn==="b")return;let ms=legal(clone());if(selected!==null){let opts=ms.filter(m=>m.from===selected&&m.to===i);if(opts.length){let m=opts[0];if(opts.length>1){let choice=prompt("Promote to: Q, R, B, or N","Q");m=opts.find(x=>x.prom===(choice||"Q").toLowerCase())||opts[0]}make(m);return}}
+ if(board[i]&&color(board[i])===turn){selected=i;render()}else{selected=null;render()}}
+function cpuMove(){if(turn!=="b"||!computer)return;let ms=legal(clone());if(!ms.length)return;let scored=ms.map(m=>({m,s:(board[m.to]?({p:1,n:3,b:3,r:5,q:9,k:99}[board[m.to].toLowerCase()]||0):0)+(m.prom?8:0)+Math.random()*1.8})).sort((a,b)=>b.s-a.s);make(scored[0].m)}
+function beep(){try{let a=new AudioContext(),o=a.createOscillator(),g=a.createGain();o.connect(g);g.connect(a.destination);o.frequency.value=220;g.gain.value=.04;o.start();o.stop(a.currentTime+.06)}catch{}}
+document.getElementById("reset").onclick=reset;document.getElementById("undo").onclick=()=>{if(history.length){restore(history.pop());records.pop();selected=null;render();status();if(computer&&turn==="w"&&history.length) {}}};document.getElementById("mode").onchange=e=>{computer=e.target.value==="cpu";reset()};document.getElementById("sound").onclick=e=>{sound=!sound;e.target.textContent="Sound: "+(sound?"on":"off")};document.getElementById("flip").onclick=()=>{flip=!flip;render()};reset();
+let deferredInstall;window.addEventListener("beforeinstallprompt",e=>{e.preventDefault();deferredInstall=e;document.getElementById("install").hidden=false});document.getElementById("install").onclick=async()=>{if(deferredInstall){deferredInstall.prompt();await deferredInstall.userChoice;deferredInstall=null}};
+if("serviceWorker" in navigator)navigator.serviceWorker.register("./sw.js");
+</script></body></html><!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#24170f"><link rel="manifest" href="manifest.json"><title>Ancient Armies Chess II</title>
+<style>
+:root{--bg:#17130f;--panel:#292017;--gold:#c9a56b;--cream:#f0dfbd;--dark:#543b27;--light:#d9bb87;--accent:#8e3325}
+*{box-sizing:border-box}body{margin:0;background:radial-gradient(ellipse at top,#3b2b1b,#17130f 70%);color:var(--cream);font-family:system-ui,serif;min-height:100vh}
+main{max-width:1050px;margin:auto;padding:18px}.top{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}.brand h1{margin:0;color:var(--gold);letter-spacing:.08em;font-family:Georgia,serif}.brand p{margin:4px 0 12px;color:#b9a58a}
+.controls{display:flex;gap:8px;flex-wrap:wrap}.btn,select{background:#3a2a1c;color:var(--cream);border:1px solid #927347;border-radius:9px;padding:9px 12px;font-size:15px}.btn:hover{background:#57402b}.layout{display:grid;grid-template-columns:minmax(280px,680px) minmax(220px,1fr);gap:18px;margin-top:12px}.boardwrap{background:#211910;border:2px solid #9d7b47;padding:8px;border-radius:14px;box-shadow:0 12px 35px #0008}.board{display:grid;grid-template-columns:repeat(8,1fr;)}.board{grid-template-columns:repeat(8,1fr);aspect-ratio:1;overflow:hidden;border-radius:7px}
+.sq{position:relative;border:0;padding:0;aspect-ratio:1;display:grid;place-items:center;cursor:pointer;font-size:clamp(24px,6.7vw,64px);line-height:1}.sq.light{background:var(--light)}.sq.dark{background:var(--dark)}.sq.selected{box-shadow:inset 0 0 0 5px #e6c64e}.sq.target:after{content:"";position:absolute;width:23%;height:23%;border-radius:50%;background:#285c36aa}.sq.capture:after{content:"";position:absolute;inset:4px;border:4px solid #8e3325b9;border-radius:50%}.piece{filter:drop-shadow(1px 3px 1px #0007);transition:transform .15s}.sq:hover .piece{transform:translateY(-3px)}.white{color:#f8ebd2;text-shadow:0 2px 3px #352311,0 0 1px #111}.black{color:#21150d;text-shadow:0 1px 1px #d6b989}.coords{position:absolute;left:3px;top:2px;font-size:10px;color:#402e1d;opacity:.8}
+.sidebar{display:flex;flex-direction:column;gap:10px}.card{background:linear-gradient(135deg,#342519,#251a12);border:1px solid #715531;border-radius:12px;padding:13px}.card h2{font-size:17px;margin:0 0 9px;color:var(--gold)}#status{font-size:17px;min-height:28px}.history{max-height:260px;overflow:auto;white-space:pre-wrap;font-family:monospace;font-size:14px;color:#dfc9a6}.help{color:#b9a58a;font-size:13px;line-height:1.5}.row{display:flex;gap:7px;flex-wrap:wrap}.row button{flex:1}.foot{color:#8f7b62;text-align:center;font-size:12px;margin:12px}
+@keyframes battle{0%{transform:scale(1.1);filter:brightness(1.8)}100%{transform:scale(1);filter:brightness(1)}}.recent .piece{animation:battle .25s ease}
+@media(max-width:760px){main{padding:10px}.layout{grid-template-columns:1fr}.sidebar{display:grid;grid-template-columns:1fr 1fr}.historycard{grid-column:1/-1}.sq{font-size:clamp(27px,10vw,54px)}}
+
+/* Ancient Armies II battlefield upgrade */
+body{background:radial-gradient(ellipse at 50% 0%,#65472c 0,#2b1b10 42%,#100c09 100%)}
+.boardwrap{border:3px ridge #b58b4f;background:linear-gradient(135deg,#68472c,#25180f 30%,#6a492c);box-shadow:0 16px 38px #000a,inset 0 0 0 2px #24160d}
+.sq.light{background:linear-gradient(135deg,#ead8b3,#bd9862)}
+.sq.dark{background:linear-gradient(135deg,#69472d,#382316)}
+.sq{overflow:hidden}
+.sq .piece{filter:drop-shadow(1px 4px 2px #0009);transition:transform .18s,filter .18s}
+.sq:hover .piece{transform:translateY(-4px) scale(1.04);filter:drop-shadow(2px 7px 3px #000a)}
+@keyframes army-march{0%{transform:scale(.55) translateY(-15px);opacity:.25}70%{transform:scale(1.12)}100%{transform:scale(1);opacity:1}}
+@keyframes battle-strike{0%{filter:brightness(2.2);transform:scale(1.25)}100%{filter:brightness(1);transform:scale(1)}}
+.sq:has(circle[stroke="#166534"]) .piece{animation:army-march .25s ease-out}
+.card{background:linear-gradient(145deg,#3b281a,#21160f);border-color:#80603a;box-shadow:0 8px 20px #0005}
+.brand h1{color:#d4ad68;text-shadow:0 3px 8px #000;letter-spacing:.09em}
+.btn{background:linear-gradient(#543a25,#2d1d12);border-color:#a37d45}
+</style></head><body><main>
+<div class="top"><div class="brand"><h1>⚔ ANCIENT ARMIES II</h1><p>Command the legions. Claim the field.</p></div><div class="controls"><select id="mode"><option value="human">Two commanders</option><option value="cpu">Battle the computer</option></select><button class="btn" id="undo">↶ Undo</button><button class="btn" id="reset">⟲ New battle</button><button class="btn" id="install" hidden>⬇ Install</button></div></div>
+<div class="layout"><div class="boardwrap"><div id="board" class="board" aria-label="Chess board"></div></div><aside class="sidebar">
+<div class="card"><h2>Battle status</h2><div id="status">White to move</div></div>
+<div class="card"><h2>Army legend</h2><div class="help">♔ / ♚ Commander · ♕ / ♛ Queen<br>♖ / ♜ Fortress · ♗ / ♝ Sage<br>♘ / ♞ Cavalry · ♙ / ♟ Infantry</div></div>
+<div class="card historycard"><h2>Battle record</h2><div id="history" class="history">The armies await your command.</div></div>
+<div class="card"><h2>Controls</h2><div class="help">Select a piece, then a highlighted square. Tap a pawn on its final rank to promote. Undo rewinds one move. Sound can be toggled.</div><div class="row"><button class="btn" id="sound">Sound: off</button><button class="btn" id="flip">Flip board</button></div></div></aside></div>
+<div class="foot">Offline-ready web app · Install from Chrome's address bar/menu when hosted securely</div></main>
+<script>
+const glyph={K:"♔",Q:"♕",R:"♖",B:"♗",N:"♘",P:"♙",k:"♚",q:"♛",r:"♜",b:"♝",n:"♞",p:"♟"};
+let board=[],turn="w",rights="KQkq",ep=null,half=0,full=1,selected=null,targets=[],history=[],records=[],flip=false,sound=false,computer=false;
+const initial="rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR";
+function reset(){board=initial.split("/").flatMap(row=>{let out=[];for(const c of row){if(+c)out.push(...Array(+c).fill(null));else out.push(c)}return out});turn="w";rights="KQkq";ep=null;half=0;full=1;selected=null;targets=[];history=[];records=[];render();status();}
+function sqName(i){return "abcdefgh"[i%8]+(8-Math.floor(i/8))}
+function index(s){return (8-+s[1])*8+"abcdefgh".indexOf(s[0])}
+function color(p){return p?(p===p.toUpperCase()?"w":"b"):null}
+function clone(){return {b:board.slice(),t:turn,r:rights,e:ep,h:half,f:full}}
+function restore(s){board=s.b.slice();turn=s.t;rights=s.r;ep=s.e;half=s.h;full=s.f}
+function attacked(b,idx,by){
+ const f=idx%8,r=Math.floor(idx/8);
+ for(let rr=0;rr<8;rr++)for(let ff=0;ff<8;ff++){let p=b[rr*8+ff];if(!p||color(p)!==by)continue;let typ=p.toLowerCase(),dr=r-rr,df=f-ff;
+ if(typ==="p"&&dr===(by==="w"?-1:1)&&Math.abs(df)===1)return true;
+ if(typ==="n"&&((Math.abs(dr)===2&&Math.abs(df)===1)||(Math.abs(dr)===1&&Math.abs(df)===2)))return true;
+ if(typ==="k"&&Math.max(Math.abs(dr),Math.abs(df))===1)return true;
+ if(["b","r","q"].includes(typ)){let diagonal=Math.abs(dr)===Math.abs(df),straight=dr===0||df===0;if((typ==="b"&&!diagonal)||(typ==="r"&&!straight)||(typ==="q"&&!(diagonal||straight))||(!dr&&!df))continue;let sr=Math.sign(dr),sf=Math.sign(df),y=rr+sr,x=ff+sf,blocked=false;while(y!==r||x!==f){if(b[y*8+x]){blocked=true;break}y+=sr;x+=sf}if(!blocked)return true}
+ }return false
+}
+function king(b,c){return b.findIndex(p=>p===(c==="w"?"K":"k"))}
+function inCheck(b,c){return attacked(b,king(b,c),c==="w"?"b":"w")}
+function pseudo(s){let out=[],b=s.b,c=s.t;const add=(from,to,prom=null,extra={})=>{if(b[to]&&color(b[to])===c)return;if(b[to]&&b[to].toLowerCase()==="k")return;out.push({from,to,prom,...extra})};
+ for(let i=0;i<64;i++){let p=b[i];if(!p||color(p)!==c)continue;let typ=p.toLowerCase(),r=i>>3,f=i%8;
+ if(typ==="p"){let d=c==="w"?-1:1,rr=r+d;if(rr>=0&&rr<8&&!b[rr*8+f]){if(rr===0||rr===7){for(let q of "qrbn")add(i,rr*8+f,q)}else add(i,rr*8+f);let start=c==="w"?6:1,rr2=r+2*d;if(r===start&&!b[rr2*8+f])add(i,rr2*8+f,null,{double:true})}
+ for(let df of [-1,1]){let nf=f+df,nr=r+d;if(nf<0||nf>7||nr<0||nr>7)continue;let dest=nr*8+nf;if(b[dest]&&color(b[dest])!==c){if(nr===0||nr===7){for(let q of "qrbn")add(i,dest,q)}else add(i,dest)}else if(dest===s.e)add(i,dest,null,{ep:true})}
+ }else{let steps=typ==="n"?[[2,1],[2,-1],[-2,1],[-2,-1],[1,2],[1,-2],[-1,2],[-1,-2]]:typ==="k"?[[1,0],[-1,0],[0,1],[0,-1],[1,1],[1,-1],[-1,1],[-1,-1]]:typ==="b"?[[1,1],[1,-1],[-1,1],[-1,-1]]:typ==="r"?[[1,0],[-1,0],[0,1],[0,-1]]:[[1,0],[-1,0],[0,1],[0,-1],[1,1],[1,-1],[-1,1],[-1,-1]];
+ for(let [dr,df] of steps){let nr=r+dr,nf=f+df;while(nr>=0&&nr<8&&nf>=0&&nf<8){add(i,nr*8+nf);if(typ==="k"||typ==="n"||b[nr*8+nf])break;nr+=dr;nf+=df}}
+ if(typ==="k"&&r===(c==="w"?7:0)&&f===4&&!inCheck(b,c)){let enemy=c==="w"?"b":"w";if(s.r.includes(c==="w"?"K":"k")&&!b[i+1]&&!b[i+2]&&b[i+3]===(c==="w"?"R":"r")&&!attacked(b,i+1,enemy)&&!attacked(b,i+2,enemy))add(i,i+2,null,{castle:"k"});if(s.r.includes(c==="w"?"Q":"q")&&!b[i-1]&&!b[i-2]&&!b[i-3]&&b[i-4]===(c==="w"?"R":"r")&&!attacked(b,i-1,enemy)&&!attacked(b,i-2,enemy))add(i,i-2,null,{castle:"q"})}
+ }}
+ return out}
+function legal(s){return pseudo(s).filter(m=>{let b=s.b.slice(),p=b[m.from];b[m.to]=m.prom?(s.t==="w"?m.prom.toUpperCase():m.prom):p;b[m.from]=null;if(m.ep)b[m.to+(s.t==="w"?8:-8)]=null;if(m.castle){let rr=m.from>>3,rookfrom=m.castle==="k"?m.from+3:m.from-4,rookto=m.castle==="k"?m.from+1:m.from-1;b[rookto]=b[rookfrom];b[rookfrom]=null}return !inCheck(b,s.t)})}
+function make(m){let prev=clone(),p=board[m.from],cap=board[m.to];history.push(prev);board[m.to]=m.prom?(turn==="w"?m.prom.toUpperCase():m.prom):p;board[m.from]=null;if(m.ep){board[m.to+(turn==="w"?8:-8)]=null;cap=turn==="w"?"p":"P"}if(m.castle){let rf=m.castle==="k"?m.from+3:m.from-4,rt=m.castle==="k"?m.from+1:m.from-1;board[rt]=board[rf];board[rf]=null}
+ if(p==="K")rights=rights.replace(/[KQ]/g,"");if(p==="k")rights=rights.replace(/[kq]/g,"");const rookRights={63:"K",56:"Q",7:"k",0:"q"};if(p.toLowerCase()==="r")rights=rights.replace(rookRights[m.from]||"","");if(cap&&cap.toLowerCase()==="r")rights=rights.replace(rookRights[m.to]||"","");ep=m.double?((m.from+m.to)/2):null;half=p.toLowerCase()==="p"||cap?0:half+1;if(turn==="b")full++;turn=turn==="w"?"b":"w";records.push((full-(turn==="w"?1:0))+(prev.t==="w"?". ":"... ")+notation(prev,m));selected=null;targets=[];render();status();if(sound)beep();if(computer&&turn==="b"&&!terminal())setTimeout(cpuMove,450)}
+function notation(s,m){let p=s.b[m.from],cap=s.b[m.to]||m.ep,txt=m.castle?(m.castle==="k"?"O-O":"O-O-O"):(p.toLowerCase()==="p"?(cap?sqName(m.from)[0]+"x":"")+sqName(m.to):p.toUpperCase()+(cap?"x":"")+sqName(m.to))+(m.prom?"="+m.prom.toUpperCase():"");let next=clone(),moves=legal(next);if(inCheck(board,turn))txt+=moves.length?" +":" #";return txt}
+function terminal(){let ms=legal(clone());return ms.length===0||half>=100}
+function status(){let ms=legal(clone()),check=inCheck(board,turn),txt;if(!ms.length)txt=check?"CHECKMATE — "+(turn==="w"?"Black":"White")+" wins!":"Draw — stalemate";else if(half>=100)txt="Draw claim available — 50 move rule";else txt=(turn==="w"?"White":"Black")+" to move"+(check?" — CHECK":"");document.getElementById("status").textContent=txt;document.getElementById("history").textContent=records.length?records.join("  "):"The armies await your command."}
+function render(){let el=document.getElementById("board");el.innerHTML="";let moves=selected===null?[]:legal(clone()).filter(m=>m.from===selected);targets=moves.map(m=>m.to);for(let n=0;n<64;n++){let i=flip?63-n:n,cell=document.createElement("button");cell.className="sq "+(((i>>3)+(i&7))%2?"dark":"light");if(i===selected)cell.classList.add("selected");if(targets.includes(i))cell.classList.add(board[i]?"capture":"target");let p=board[i];if(p){let sp=document.createElement("span");sp.className="piece "+(color(p)==="w"?"white":"black");sp.textContent=glyph[p];cell.append(sp)}let co=document.createElement("span");co.className="coords";co.textContent=(i%8===0?8-(i>>3):"")+(i>>3===7?"abcdefgh"[i%8]:"");cell.append(co);cell.onclick=()=>click(i);el.append(cell)}}
+function click(i){if(computer&&turn==="b")return;let ms=legal(clone());if(selected!==null){let opts=ms.filter(m=>m.from===selected&&m.to===i);if(opts.length){let m=opts[0];if(opts.length>1){let choice=prompt("Promote to: Q, R, B, or N","Q");m=opts.find(x=>x.prom===(choice||"Q").toLowerCase())||opts[0]}make(m);return}}
+ if(board[i]&&color(board[i])===turn){selected=i;render()}else{selected=null;render()}}
+function cpuMove(){if(turn!=="b"||!computer)return;let ms=legal(clone());if(!ms.length)return;let scored=ms.map(m=>({m,s:(board[m.to]?({p:1,n:3,b:3,r:5,q:9,k:99}[board[m.to].toLowerCase()]||0):0)+(m.prom?8:0)+Math.random()*1.8})).sort((a,b)=>b.s-a.s);make(scored[0].m)}
+function beep(){try{let a=new AudioContext(),o=a.createOscillator(),g=a.createGain();o.connect(g);g.connect(a.destination);o.frequency.value=220;g.gain.value=.04;o.start();o.stop(a.currentTime+.06)}catch{}}
+document.getElementById("reset").onclick=reset;document.getElementById("undo").onclick=()=>{if(history.length){restore(history.pop());records.pop();selected=null;render();status();if(computer&&turn==="w"&&history.length) {}}};document.getElementById("mode").onchange=e=>{computer=e.target.value==="cpu";reset()};document.getElementById("sound").onclick=e=>{sound=!sound;e.target.textContent="Sound: "+(sound?"on":"off")};document.getElementById("flip").onclick=()=>{flip=!flip;render()};reset();
+let deferredInstall;window.addEventListener("beforeinstallprompt",e=>{e.preventDefault();deferredInstall=e;document.getElementById("install").hidden=false});document.getElementById("install").onclick=async()=>{if(deferredInstall){deferredInstall.prompt();await deferredInstall.userChoice;deferredInstall=null}};
+if("serviceWorker" in navigator)navigator.serviceWorker.register("./sw.js");
+</script></body></html><!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#24170f"><link rel="manifest" href="manifest.json"><title>Ancient Armies Chess II</title>
+<style>
+:root{--bg:#17130f;--panel:#292017;--gold:#c9a56b;--cream:#f0dfbd;--dark:#543b27;--light:#d9bb87;--accent:#8e3325}
+*{box-sizing:border-box}body{margin:0;background:radial-gradient(ellipse at top,#3b2b1b,#17130f 70%);color:var(--cream);font-family:system-ui,serif;min-height:100vh}
+main{max-width:1050px;margin:auto;padding:18px}.top{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}.brand h1{margin:0;color:var(--gold);letter-spacing:.08em;font-family:Georgia,serif}.brand p{margin:4px 0 12px;color:#b9a58a}
+.controls{display:flex;gap:8px;flex-wrap:wrap}.btn,select{background:#3a2a1c;color:var(--cream);border:1px solid #927347;border-radius:9px;padding:9px 12px;font-size:15px}.btn:hover{background:#57402b}.layout{display:grid;grid-template-columns:minmax(280px,680px) minmax(220px,1fr);gap:18px;margin-top:12px}.boardwrap{background:#211910;border:2px solid #9d7b47;padding:8px;border-radius:14px;box-shadow:0 12px 35px #0008}.board{display:grid;grid-template-columns:repeat(8,1fr;)}.board{grid-template-columns:repeat(8,1fr);aspect-ratio:1;overflow:hidden;border-radius:7px}
+.sq{position:relative;border:0;padding:0;aspect-ratio:1;display:grid;place-items:center;cursor:pointer;font-size:clamp(24px,6.7vw,64px);line-height:1}.sq.light{background:var(--light)}.sq.dark{background:var(--dark)}.sq.selected{box-shadow:inset 0 0 0 5px #e6c64e}.sq.target:after{content:"";position:absolute;width:23%;height:23%;border-radius:50%;background:#285c36aa}.sq.capture:after{content:"";position:absolute;inset:4px;border:4px solid #8e3325b9;border-radius:50%}.piece{filter:drop-shadow(1px 3px 1px #0007);transition:transform .15s}.sq:hover .piece{transform:translateY(-3px)}.white{color:#f8ebd2;text-shadow:0 2px 3px #352311,0 0 1px #111}.black{color:#21150d;text-shadow:0 1px 1px #d6b989}.coords{position:absolute;left:3px;top:2px;font-size:10px;color:#402e1d;opacity:.8}
+.sidebar{display:flex;flex-direction:column;gap:10px}.card{background:linear-gradient(135deg,#342519,#251a12);border:1px solid #715531;border-radius:12px;padding:13px}.card h2{font-size:17px;margin:0 0 9px;color:var(--gold)}#status{font-size:17px;min-height:28px}.history{max-height:260px;overflow:auto;white-space:pre-wrap;font-family:monospace;font-size:14px;color:#dfc9a6}.help{color:#b9a58a;font-size:13px;line-height:1.5}.row{display:flex;gap:7px;flex-wrap:wrap}.row button{flex:1}.foot{color:#8f7b62;text-align:center;font-size:12px;margin:12px}
+@keyframes battle{0%{transform:scale(1.1);filter:brightness(1.8)}100%{transform:scale(1);filter:brightness(1)}}.recent .piece{animation:battle .25s ease}
+@media(max-width:760px){main{padding:10px}.layout{grid-template-columns:1fr}.sidebar{display:grid;grid-template-columns:1fr 1fr}.historycard{grid-column:1/-1}.sq{font-size:clamp(27px,10vw,54px)}}
+
+/* Ancient Armies II battlefield upgrade */
+body{background:radial-gradient(ellipse at 50% 0%,#65472c 0,#2b1b10 42%,#100c09 100%)}
+.boardwrap{border:3px ridge #b58b4f;background:linear-gradient(135deg,#68472c,#25180f 30%,#6a492c);box-shadow:0 16px 38px #000a,inset 0 0 0 2px #24160d}
+.sq.light{background:linear-gradient(135deg,#ead8b3,#bd9862)}
+.sq.dark{background:linear-gradient(135deg,#69472d,#382316)}
+.sq{overflow:hidden}
+.sq .piece{filter:drop-shadow(1px 4px 2px #0009);transition:transform .18s,filter .18s}
+.sq:hover .piece{transform:translateY(-4px) scale(1.04);filter:drop-shadow(2px 7px 3px #000a)}
+@keyframes army-march{0%{transform:scale(.55) translateY(-15px);opacity:.25}70%{transform:scale(1.12)}100%{transform:scale(1);opacity:1}}
+@keyframes battle-strike{0%{filter:brightness(2.2);transform:scale(1.25)}100%{filter:brightness(1);transform:scale(1)}}
+.sq:has(circle[stroke="#166534"]) .piece{animation:army-march .25s ease-out}
+.card{background:linear-gradient(145deg,#3b281a,#21160f);border-color:#80603a;box-shadow:0 8px 20px #0005}
+.brand h1{color:#d4ad68;text-shadow:0 3px 8px #000;letter-spacing:.09em}
+.btn{background:linear-gradient(#543a25,#2d1d12);border-color:#a37d45}
+</style></head><body><main>
+<div class="top"><div class="brand"><h1>⚔ ANCIENT ARMIES II</h1><p>Command the legions. Claim the field.</p></div><div class="controls"><select id="mode"><option value="human">Two commanders</option><option value="cpu">Battle the computer</option></select><button class="btn" id="undo">↶ Undo</button><button class="btn" id="reset">⟲ New battle</button><button class="btn" id="install" hidden>⬇ Install</button></div></div>
+<div class="layout"><div class="boardwrap"><div id="board" class="board" aria-label="Chess board"></div></div><aside class="sidebar">
+<div class="card"><h2>Battle status</h2><div id="status">White to move</div></div>
+<div class="card"><h2>Army legend</h2><div class="help">♔ / ♚ Commander · ♕ / ♛ Queen<br>♖ / ♜ Fortress · ♗ / ♝ Sage<br>♘ / ♞ Cavalry · ♙ / ♟ Infantry</div></div>
+<div class="card historycard"><h2>Battle record</h2><div id="history" class="history">The armies await your command.</div></div>
+<div class="card"><h2>Controls</h2><div class="help">Select a piece, then a highlighted square. Tap a pawn on its final rank to promote. Undo rewinds one move. Sound can be toggled.</div><div class="row"><button class="btn" id="sound">Sound: off</button><button class="btn" id="flip">Flip board</button></div></div></aside></div>
+<div class="foot">Offline-ready web app · Install from Chrome's address bar/menu when hosted securely</div></main>
+<script>
+const glyph={K:"♔",Q:"♕",R:"♖",B:"♗",N:"♘",P:"♙",k:"♚",q:"♛",r:"♜",b:"♝",n:"♞",p:"♟"};
+let board=[],turn="w",rights="KQkq",ep=null,half=0,full=1,selected=null,targets=[],history=[],records=[],flip=false,sound=false,computer=false;
+const initial="rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR";
+function reset(){board=initial.split("/").flatMap(row=>{let out=[];for(const c of row){if(+c)out.push(...Array(+c).fill(null));else out.push(c)}return out});turn="w";rights="KQkq";ep=null;half=0;full=1;selected=null;targets=[];history=[];records=[];render();status();}
+function sqName(i){return "abcdefgh"[i%8]+(8-Math.floor(i/8))}
+function index(s){return (8-+s[1])*8+"abcdefgh".indexOf(s[0])}
+function color(p){return p?(p===p.toUpperCase()?"w":"b"):null}
+function clone(){return {b:board.slice(),t:turn,r:rights,e:ep,h:half,f:full}}
+function restore(s){board=s.b.slice();turn=s.t;rights=s.r;ep=s.e;half=s.h;full=s.f}
+function attacked(b,idx,by){
+ const f=idx%8,r=Math.floor(idx/8);
+ for(let rr=0;rr<8;rr++)for(let ff=0;ff<8;ff++){let p=b[rr*8+ff];if(!p||color(p)!==by)continue;let typ=p.toLowerCase(),dr=r-rr,df=f-ff;
+ if(typ==="p"&&dr===(by==="w"?-1:1)&&Math.abs(df)===1)return true;
+ if(typ==="n"&&((Math.abs(dr)===2&&Math.abs(df)===1)||(Math.abs(dr)===1&&Math.abs(df)===2)))return true;
+ if(typ==="k"&&Math.max(Math.abs(dr),Math.abs(df))===1)return true;
+ if(["b","r","q"].includes(typ)){let diagonal=Math.abs(dr)===Math.abs(df),straight=dr===0||df===0;if((typ==="b"&&!diagonal)||(typ==="r"&&!straight)||(typ==="q"&&!(diagonal||straight))||(!dr&&!df))continue;let sr=Math.sign(dr),sf=Math.sign(df),y=rr+sr,x=ff+sf,blocked=false;while(y!==r||x!==f){if(b[y*8+x]){blocked=true;break}y+=sr;x+=sf}if(!blocked)return true}
+ }return false
+}
+function king(b,c){return b.findIndex(p=>p===(c==="w"?"K":"k"))}
+function inCheck(b,c){return attacked(b,king(b,c),c==="w"?"b":"w")}
+function pseudo(s){let out=[],b=s.b,c=s.t;const add=(from,to,prom=null,extra={})=>{if(b[to]&&color(b[to])===c)return;if(b[to]&&b[to].toLowerCase()==="k")return;out.push({from,to,prom,...extra})};
+ for(let i=0;i<64;i++){let p=b[i];if(!p||color(p)!==c)continue;let typ=p.toLowerCase(),r=i>>3,f=i%8;
+ if(typ==="p"){let d=c==="w"?-1:1,rr=r+d;if(rr>=0&&rr<8&&!b[rr*8+f]){if(rr===0||rr===7){for(let q of "qrbn")add(i,rr*8+f,q)}else add(i,rr*8+f);let start=c==="w"?6:1,rr2=r+2*d;if(r===start&&!b[rr2*8+f])add(i,rr2*8+f,null,{double:true})}
+ for(let df of [-1,1]){let nf=f+df,nr=r+d;if(nf<0||nf>7||nr<0||nr>7)continue;let dest=nr*8+nf;if(b[dest]&&color(b[dest])!==c){if(nr===0||nr===7){for(let q of "qrbn")add(i,dest,q)}else add(i,dest)}else if(dest===s.e)add(i,dest,null,{ep:true})}
+ }else{let steps=typ==="n"?[[2,1],[2,-1],[-2,1],[-2,-1],[1,2],[1,-2],[-1,2],[-1,-2]]:typ==="k"?[[1,0],[-1,0],[0,1],[0,-1],[1,1],[1,-1],[-1,1],[-1,-1]]:typ==="b"?[[1,1],[1,-1],[-1,1],[-1,-1]]:typ==="r"?[[1,0],[-1,0],[0,1],[0,-1]]:[[1,0],[-1,0],[0,1],[0,-1],[1,1],[1,-1],[-1,1],[-1,-1]];
+ for(let [dr,df] of steps){let nr=r+dr,nf=f+df;while(nr>=0&&nr<8&&nf>=0&&nf<8){add(i,nr*8+nf);if(typ==="k"||typ==="n"||b[nr*8+nf])break;nr+=dr;nf+=df}}
+ if(typ==="k"&&r===(c==="w"?7:0)&&f===4&&!inCheck(b,c)){let enemy=c==="w"?"b":"w";if(s.r.includes(c==="w"?"K":"k")&&!b[i+1]&&!b[i+2]&&b[i+3]===(c==="w"?"R":"r")&&!attacked(b,i+1,enemy)&&!attacked(b,i+2,enemy))add(i,i+2,null,{castle:"k"});if(s.r.includes(c==="w"?"Q":"q")&&!b[i-1]&&!b[i-2]&&!b[i-3]&&b[i-4]===(c==="w"?"R":"r")&&!attacked(b,i-1,enemy)&&!attacked(b,i-2,enemy))add(i,i-2,null,{castle:"q"})}
+ }}
+ return out}
+function legal(s){return pseudo(s).filter(m=>{let b=s.b.slice(),p=b[m.from];b[m.to]=m.prom?(s.t==="w"?m.prom.toUpperCase():m.prom):p;b[m.from]=null;if(m.ep)b[m.to+(s.t==="w"?8:-8)]=null;if(m.castle){let rr=m.from>>3,rookfrom=m.castle==="k"?m.from+3:m.from-4,rookto=m.castle==="k"?m.from+1:m.from-1;b[rookto]=b[rookfrom];b[rookfrom]=null}return !inCheck(b,s.t)})}
+function make(m){let prev=clone(),p=board[m.from],cap=board[m.to];history.push(prev);board[m.to]=m.prom?(turn==="w"?m.prom.toUpperCase():m.prom):p;board[m.from]=null;if(m.ep){board[m.to+(turn==="w"?8:-8)]=null;cap=turn==="w"?"p":"P"}if(m.castle){let rf=m.castle==="k"?m.from+3:m.from-4,rt=m.castle==="k"?m.from+1:m.from-1;board[rt]=board[rf];board[rf]=null}
+ if(p==="K")rights=rights.replace(/[KQ]/g,"");if(p==="k")rights=rights.replace(/[kq]/g,"");const rookRights={63:"K",56:"Q",7:"k",0:"q"};if(p.toLowerCase()==="r")rights=rights.replace(rookRights[m.from]||"","");if(cap&&cap.toLowerCase()==="r")rights=rights.replace(rookRights[m.to]||"","");ep=m.double?((m.from+m.to)/2):null;half=p.toLowerCase()==="p"||cap?0:half+1;if(turn==="b")full++;turn=turn==="w"?"b":"w";records.push((full-(turn==="w"?1:0))+(prev.t==="w"?". ":"... ")+notation(prev,m));selected=null;targets=[];render();status();if(sound)beep();if(computer&&turn==="b"&&!terminal())setTimeout(cpuMove,450)}
+function notation(s,m){let p=s.b[m.from],cap=s.b[m.to]||m.ep,txt=m.castle?(m.castle==="k"?"O-O":"O-O-O"):(p.toLowerCase()==="p"?(cap?sqName(m.from)[0]+"x":"")+sqName(m.to):p.toUpperCase()+(cap?"x":"")+sqName(m.to))+(m.prom?"="+m.prom.toUpperCase():"");let next=clone(),moves=legal(next);if(inCheck(board,turn))txt+=moves.length?" +":" #";return txt}
+function terminal(){let ms=legal(clone());return ms.length===0||half>=100}
+function status(){let ms=legal(clone()),check=inCheck(board,turn),txt;if(!ms.length)txt=check?"CHECKMATE — "+(turn==="w"?"Black":"White")+" wins!":"Draw — stalemate";else if(half>=100)txt="Draw claim available — 50 move rule";else txt=(turn==="w"?"White":"Black")+" to move"+(check?" — CHECK":"");document.getElementById("status").textContent=txt;document.getElementById("history").textContent=records.length?records.join("  "):"The armies await your command."}
+function render(){let el=document.getElementById("board");el.innerHTML="";let moves=selected===null?[]:legal(clone()).filter(m=>m.from===selected);targets=moves.map(m=>m.to);for(let n=0;n<64;n++){let i=flip?63-n:n,cell=document.createElement("button");cell.className="sq "+(((i>>3)+(i&7))%2?"dark":"light");if(i===selected)cell.classList.add("selected");if(targets.includes(i))cell.classList.add(board[i]?"capture":"target");let p=board[i];if(p){let sp=document.createElement("span");sp.className="piece "+(color(p)==="w"?"white":"black");sp.textContent=glyph[p];cell.append(sp)}let co=document.createElement("span");co.className="coords";co.textContent=(i%8===0?8-(i>>3):"")+(i>>3===7?"abcdefgh"[i%8]:"");cell.append(co);cell.onclick=()=>click(i);el.append(cell)}}
+function click(i){if(computer&&turn==="b")return;let ms=legal(clone());if(selected!==null){let opts=ms.filter(m=>m.from===selected&&m.to===i);if(opts.length){let m=opts[0];if(opts.length>1){let choice=prompt("Promote to: Q, R, B, or N","Q");m=opts.find(x=>x.prom===(choice||"Q").toLowerCase())||opts[0]}make(m);return}}
+ if(board[i]&&color(board[i])===turn){selected=i;render()}else{selected=null;render()}}
+function cpuMove(){if(turn!=="b"||!computer)return;let ms=legal(clone());if(!ms.length)return;let scored=ms.map(m=>({m,s:(board[m.to]?({p:1,n:3,b:3,r:5,q:9,k:99}[board[m.to].toLowerCase()]||0):0)+(m.prom?8:0)+Math.random()*1.8})).sort((a,b)=>b.s-a.s);make(scored[0].m)}
+function beep(){try{let a=new AudioContext(),o=a.createOscillator(),g=a.createGain();o.connect(g);g.connect(a.destination);o.frequency.value=220;g.gain.value=.04;o.start();o.stop(a.currentTime+.06)}catch{}}
+document.getElementById("reset").onclick=reset;document.getElementById("undo").onclick=()=>{if(history.length){restore(history.pop());records.pop();selected=null;render();status();if(computer&&turn==="w"&&history.length) {}}};document.getElementById("mode").onchange=e=>{computer=e.target.value==="cpu";reset()};document.getElementById("sound").onclick=e=>{sound=!sound;e.target.textContent="Sound: "+(sound?"on":"off")};document.getElementById("flip").onclick=()=>{flip=!flip;render()};reset();
+let deferredInstall;window.addEventListener("beforeinstallprompt",e=>{e.preventDefault();deferredInstall=e;document.getElementById("install").hidden=false});document.getElementById("install").onclick=async()=>{if(deferredInstall){deferredInstall.prompt();await deferredInstall.userChoice;deferredInstall=null}};
+if("serviceWorker" in navigator)navigator.serviceWorker.register("./sw.js");
+</script></body></html><!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#24170f"><link rel="manifest" href="manifest.json"><title>Ancient Armies Chess II</title>
+<style>
+:root{--bg:#17130f;--panel:#292017;--gold:#c9a56b;--cream:#f0dfbd;--dark:#543b27;--light:#d9bb87;--accent:#8e3325}
+*{box-sizing:border-box}body{margin:0;background:radial-gradient(ellipse at top,#3b2b1b,#17130f 70%);color:var(--cream);font-family:system-ui,serif;min-height:100vh}
+main{max-width:1050px;margin:auto;padding:18px}.top{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}.brand h1{margin:0;color:var(--gold);letter-spacing:.08em;font-family:Georgia,serif}.brand p{margin:4px 0 12px;color:#b9a58a}
+.controls{display:flex;gap:8px;flex-wrap:wrap}.btn,select{background:#3a2a1c;color:var(--cream);border:1px solid #927347;border-radius:9px;padding:9px 12px;font-size:15px}.btn:hover{background:#57402b}.layout{display:grid;grid-template-columns:minmax(280px,680px) minmax(220px,1fr);gap:18px;margin-top:12px}.boardwrap{background:#211910;border:2px solid #9d7b47;padding:8px;border-radius:14px;box-shadow:0 12px 35px #0008}.board{display:grid;grid-template-columns:repeat(8,1fr;)}.board{grid-template-columns:repeat(8,1fr);aspect-ratio:1;overflow:hidden;border-radius:7px}
+.sq{position:relative;border:0;padding:0;aspect-ratio:1;display:grid;place-items:center;cursor:pointer;font-size:clamp(24px,6.7vw,64px);line-height:1}.sq.light{background:var(--light)}.sq.dark{background:var(--dark)}.sq.selected{box-shadow:inset 0 0 0 5px #e6c64e}.sq.target:after{content:"";position:absolute;width:23%;height:23%;border-radius:50%;background:#285c36aa}.sq.capture:after{content:"";position:absolute;inset:4px;border:4px solid #8e3325b9;border-radius:50%}.piece{filter:drop-shadow(1px 3px 1px #0007);transition:transform .15s}.sq:hover .piece{transform:translateY(-3px)}.white{color:#f8ebd2;text-shadow:0 2px 3px #352311,0 0 1px #111}.black{color:#21150d;text-shadow:0 1px 1px #d6b989}.coords{position:absolute;left:3px;top:2px;font-size:10px;color:#402e1d;opacity:.8}
+.sidebar{display:flex;flex-direction:column;gap:10px}.card{background:linear-gradient(135deg,#342519,#251a12);border:1px solid #715531;border-radius:12px;padding:13px}.card h2{font-size:17px;margin:0 0 9px;color:var(--gold)}#status{font-size:17px;min-height:28px}.history{max-height:260px;overflow:auto;white-space:pre-wrap;font-family:monospace;font-size:14px;color:#dfc9a6}.help{color:#b9a58a;font-size:13px;line-height:1.5}.row{display:flex;gap:7px;flex-wrap:wrap}.row button{flex:1}.foot{color:#8f7b62;text-align:center;font-size:12px;margin:12px}
+@keyframes battle{0%{transform:scale(1.1);filter:brightness(1.8)}100%{transform:scale(1);filter:brightness(1)}}.recent .piece{animation:battle .25s ease}
+@media(max-width:760px){main{padding:10px}.layout{grid-template-columns:1fr}.sidebar{display:grid;grid-template-columns:1fr 1fr}.historycard{grid-column:1/-1}.sq{font-size:clamp(27px,10vw,54px)}}
+
+/* Ancient Armies II battlefield upgrade */
+body{background:radial-gradient(ellipse at 50% 0%,#65472c 0,#2b1b10 42%,#100c09 100%)}
+.boardwrap{border:3px ridge #b58b4f;background:linear-gradient(135deg,#68472c,#25180f 30%,#6a492c);box-shadow:0 16px 38px #000a,inset 0 0 0 2px #24160d}
+.sq.light{background:linear-gradient(135deg,#ead8b3,#bd9862)}
+.sq.dark{background:linear-gradient(135deg,#69472d,#382316)}
+.sq{overflow:hidden}
+.sq .piece{filter:drop-shadow(1px 4px 2px #0009);transition:transform .18s,filter .18s}
+.sq:hover .piece{transform:translateY(-4px) scale(1.04);filter:drop-shadow(2px 7px 3px #000a)}
+@keyframes army-march{0%{transform:scale(.55) translateY(-15px);opacity:.25}70%{transform:scale(1.12)}100%{transform:scale(1);opacity:1}}
+@keyframes battle-strike{0%{filter:brightness(2.2);transform:scale(1.25)}100%{filter:brightness(1);transform:scale(1)}}
+.sq:has(circle[stroke="#166534"]) .piece{animation:army-march .25s ease-out}
+.card{background:linear-gradient(145deg,#3b281a,#21160f);border-color:#80603a;box-shadow:0 8px 20px #0005}
+.brand h1{color:#d4ad68;text-shadow:0 3px 8px #000;letter-spacing:.09em}
+.btn{background:linear-gradient(#543a25,#2d1d12);border-color:#a37d45}
+</style></head><body><main>
+<div class="top"><div class="brand"><h1>⚔ ANCIENT ARMIES II</h1><p>Command the legions. Claim the field.</p></div><div class="controls"><select id="mode"><option value="human">Two commanders</option><option value="cpu">Battle the computer</option></select><button class="btn" id="undo">↶ Undo</button><button class="btn" id="reset">⟲ New battle</button><button class="btn" id="install" hidden>⬇ Install</button></div></div>
+<div class="layout"><div class="boardwrap"><div id="board" class="board" aria-label="Chess board"></div></div><aside class="sidebar">
+<div class="card"><h2>Battle status</h2><div id="status">White to move</div></div>
+<div class="card"><h2>Army legend</h2><div class="help">♔ / ♚ Commander · ♕ / ♛ Queen<br>♖ / ♜ Fortress · ♗ / ♝ Sage<br>♘ / ♞ Cavalry · ♙ / ♟ Infantry</div></div>
+<div class="card historycard"><h2>Battle record</h2><div id="history" class="history">The armies await your command.</div></div>
+<div class="card"><h2>Controls</h2><div class="help">Select a piece, then a highlighted square. Tap a pawn on its final rank to promote. Undo rewinds one move. Sound can be toggled.</div><div class="row"><button class="btn" id="sound">Sound: off</button><button class="btn" id="flip">Flip board</button></div></div></aside></div>
+<div class="foot">Offline-ready web app · Install from Chrome's address bar/menu when hosted securely</div></main>
+<script>
+const glyph={K:"♔",Q:"♕",R:"♖",B:"♗",N:"♘",P:"♙",k:"♚",q:"♛",r:"♜",b:"♝",n:"♞",p:"♟"};
+let board=[],turn="w",rights="KQkq",ep=null,half=0,full=1,selected=null,targets=[],history=[],records=[],flip=false,sound=false,computer=false;
+const initial="rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR";
+function reset(){board=initial.split("/").flatMap(row=>{let out=[];for(const c of row){if(+c)out.push(...Array(+c).fill(null));else out.push(c)}return out});turn="w";rights="KQkq";ep=null;half=0;full=1;selected=null;targets=[];history=[];records=[];render();status();}
+function sqName(i){return "abcdefgh"[i%8]+(8-Math.floor(i/8))}
+function index(s){return (8-+s[1])*8+"abcdefgh".indexOf(s[0])}
+function color(p){return p?(p===p.toUpperCase()?"w":"b"):null}
+function clone(){return {b:board.slice(),t:turn,r:rights,e:ep,h:half,f:full}}
+function restore(s){board=s.b.slice();turn=s.t;rights=s.r;ep=s.e;half=s.h;full=s.f}
+function attacked(b,idx,by){
+ const f=idx%8,r=Math.floor(idx/8);
+ for(let rr=0;rr<8;rr++)for(let ff=0;ff<8;ff++){let p=b[rr*8+ff];if(!p||color(p)!==by)continue;let typ=p.toLowerCase(),dr=r-rr,df=f-ff;
+ if(typ==="p"&&dr===(by==="w"?-1:1)&&Math.abs(df)===1)return true;
+ if(typ==="n"&&((Math.abs(dr)===2&&Math.abs(df)===1)||(Math.abs(dr)===1&&Math.abs(df)===2)))return true;
+ if(typ==="k"&&Math.max(Math.abs(dr),Math.abs(df))===1)return true;
+ if(["b","r","q"].includes(typ)){let diagonal=Math.abs(dr)===Math.abs(df),straight=dr===0||df===0;if((typ==="b"&&!diagonal)||(typ==="r"&&!straight)||(typ==="q"&&!(diagonal||straight))||(!dr&&!df))continue;let sr=Math.sign(dr),sf=Math.sign(df),y=rr+sr,x=ff+sf,blocked=false;while(y!==r||x!==f){if(b[y*8+x]){blocked=true;break}y+=sr;x+=sf}if(!blocked)return true}
+ }return false
+}
+function king(b,c){return b.findIndex(p=>p===(c==="w"?"K":"k"))}
+function inCheck(b,c){return attacked(b,king(b,c),c==="w"?"b":"w")}
+function pseudo(s){let out=[],b=s.b,c=s.t;const add=(from,to,prom=null,extra={})=>{if(b[to]&&color(b[to])===c)return;if(b[to]&&b[to].toLowerCase()==="k")return;out.push({from,to,prom,...extra})};
+ for(let i=0;i<64;i++){let p=b[i];if(!p||color(p)!==c)continue;let typ=p.toLowerCase(),r=i>>3,f=i%8;
+ if(typ==="p"){let d=c==="w"?-1:1,rr=r+d;if(rr>=0&&rr<8&&!b[rr*8+f]){if(rr===0||rr===7){for(let q of "qrbn")add(i,rr*8+f,q)}else add(i,rr*8+f);let start=c==="w"?6:1,rr2=r+2*d;if(r===start&&!b[rr2*8+f])add(i,rr2*8+f,null,{double:true})}
+ for(let df of [-1,1]){let nf=f+df,nr=r+d;if(nf<0||nf>7||nr<0||nr>7)continue;let dest=nr*8+nf;if(b[dest]&&color(b[dest])!==c){if(nr===0||nr===7){for(let q of "qrbn")add(i,dest,q)}else add(i,dest)}else if(dest===s.e)add(i,dest,null,{ep:true})}
+ }else{let steps=typ==="n"?[[2,1],[2,-1],[-2,1],[-2,-1],[1,2],[1,-2],[-1,2],[-1,-2]]:typ==="k"?[[1,0],[-1,0],[0,1],[0,-1],[1,1],[1,-1],[-1,1],[-1,-1]]:typ==="b"?[[1,1],[1,-1],[-1,1],[-1,-1]]:typ==="r"?[[1,0],[-1,0],[0,1],[0,-1]]:[[1,0],[-1,0],[0,1],[0,-1],[1,1],[1,-1],[-1,1],[-1,-1]];
+ for(let [dr,df] of steps){let nr=r+dr,nf=f+df;while(nr>=0&&nr<8&&nf>=0&&nf<8){add(i,nr*8+nf);if(typ==="k"||typ==="n"||b[nr*8+nf])break;nr+=dr;nf+=df}}
+ if(typ==="k"&&r===(c==="w"?7:0)&&f===4&&!inCheck(b,c)){let enemy=c==="w"?"b":"w";if(s.r.includes(c==="w"?"K":"k")&&!b[i+1]&&!b[i+2]&&b[i+3]===(c==="w"?"R":"r")&&!attacked(b,i+1,enemy)&&!attacked(b,i+2,enemy))add(i,i+2,null,{castle:"k"});if(s.r.includes(c==="w"?"Q":"q")&&!b[i-1]&&!b[i-2]&&!b[i-3]&&b[i-4]===(c==="w"?"R":"r")&&!attacked(b,i-1,enemy)&&!attacked(b,i-2,enemy))add(i,i-2,null,{castle:"q"})}
+ }}
+ return out}
+function legal(s){return pseudo(s).filter(m=>{let b=s.b.slice(),p=b[m.from];b[m.to]=m.prom?(s.t==="w"?m.prom.toUpperCase():m.prom):p;b[m.from]=null;if(m.ep)b[m.to+(s.t==="w"?8:-8)]=null;if(m.castle){let rr=m.from>>3,rookfrom=m.castle==="k"?m.from+3:m.from-4,rookto=m.castle==="k"?m.from+1:m.from-1;b[rookto]=b[rookfrom];b[rookfrom]=null}return !inCheck(b,s.t)})}
+function make(m){let prev=clone(),p=board[m.from],cap=board[m.to];history.push(prev);board[m.to]=m.prom?(turn==="w"?m.prom.toUpperCase():m.prom):p;board[m.from]=null;if(m.ep){board[m.to+(turn==="w"?8:-8)]=null;cap=turn==="w"?"p":"P"}if(m.castle){let rf=m.castle==="k"?m.from+3:m.from-4,rt=m.castle==="k"?m.from+1:m.from-1;board[rt]=board[rf];board[rf]=null}
+ if(p==="K")rights=rights.replace(/[KQ]/g,"");if(p==="k")rights=rights.replace(/[kq]/g,"");const rookRights={63:"K",56:"Q",7:"k",0:"q"};if(p.toLowerCase()==="r")rights=rights.replace(rookRights[m.from]||"","");if(cap&&cap.toLowerCase()==="r")rights=rights.replace(rookRights[m.to]||"","");ep=m.double?((m.from+m.to)/2):null;half=p.toLowerCase()==="p"||cap?0:half+1;if(turn==="b")full++;turn=turn==="w"?"b":"w";records.push((full-(turn==="w"?1:0))+(prev.t==="w"?". ":"... ")+notation(prev,m));selected=null;targets=[];render();status();if(sound)beep();if(computer&&turn==="b"&&!terminal())setTimeout(cpuMove,450)}
+function notation(s,m){let p=s.b[m.from],cap=s.b[m.to]||m.ep,txt=m.castle?(m.castle==="k"?"O-O":"O-O-O"):(p.toLowerCase()==="p"?(cap?sqName(m.from)[0]+"x":"")+sqName(m.to):p.toUpperCase()+(cap?"x":"")+sqName(m.to))+(m.prom?"="+m.prom.toUpperCase():"");let next=clone(),moves=legal(next);if(inCheck(board,turn))txt+=moves.length?" +":" #";return txt}
+function terminal(){let ms=legal(clone());return ms.length===0||half>=100}
+function status(){let ms=legal(clone()),check=inCheck(board,turn),txt;if(!ms.length)txt=check?"CHECKMATE — "+(turn==="w"?"Black":"White")+" wins!":"Draw — stalemate";else if(half>=100)txt="Draw claim available — 50 move rule";else txt=(turn==="w"?"White":"Black")+" to move"+(check?" — CHECK":"");document.getElementById("status").textContent=txt;document.getElementById("history").textContent=records.length?records.join("  "):"The armies await your command."}
+function render(){let el=document.getElementById("board");el.innerHTML="";let moves=selected===null?[]:legal(clone()).filter(m=>m.from===selected);targets=moves.map(m=>m.to);for(let n=0;n<64;n++){let i=flip?63-n:n,cell=document.createElement("button");cell.className="sq "+(((i>>3)+(i&7))%2?"dark":"light");if(i===selected)cell.classList.add("selected");if(targets.includes(i))cell.classList.add(board[i]?"capture":"target");let p=board[i];if(p){let sp=document.createElement("span");sp.className="piece "+(color(p)==="w"?"white":"black");sp.textContent=glyph[p];cell.append(sp)}let co=document.createElement("span");co.className="coords";co.textContent=(i%8===0?8-(i>>3):"")+(i>>3===7?"abcdefgh"[i%8]:"");cell.append(co);cell.onclick=()=>click(i);el.append(cell)}}
+function click(i){if(computer&&turn==="b")return;let ms=legal(clone());if(selected!==null){let opts=ms.filter(m=>m.from===selected&&m.to===i);if(opts.length){let m=opts[0];if(opts.length>1){let choice=prompt("Promote to: Q, R, B, or N","Q");m=opts.find(x=>x.prom===(choice||"Q").toLowerCase())||opts[0]}make(m);return}}
+ if(board[i]&&color(board[i])===turn){selected=i;render()}else{selected=null;render()}}
+function cpuMove(){if(turn!=="b"||!computer)return;let ms=legal(clone());if(!ms.length)return;let scored=ms.map(m=>({m,s:(board[m.to]?({p:1,n:3,b:3,r:5,q:9,k:99}[board[m.to].toLowerCase()]||0):0)+(m.prom?8:0)+Math.random()*1.8})).sort((a,b)=>b.s-a.s);make(scored[0].m)}
+function beep(){try{let a=new AudioContext(),o=a.createOscillator(),g=a.createGain();o.connect(g);g.connect(a.destination);o.frequency.value=220;g.gain.value=.04;o.start();o.stop(a.currentTime+.06)}catch{}}
+document.getElementById("reset").onclick=reset;document.getElementById("undo").onclick=()=>{if(history.length){restore(history.pop());records.pop();selected=null;render();status();if(computer&&turn==="w"&&history.length) {}}};document.getElementById("mode").onchange=e=>{computer=e.target.value==="cpu";reset()};document.getElementById("sound").onclick=e=>{sound=!sound;e.target.textContent="Sound: "+(sound?"on":"off")};document.getElementById("flip").onclick=()=>{flip=!flip;render()};reset();
+let deferredInstall;window.addEventListener("beforeinstallprompt",e=>{e.preventDefault();deferredInstall=e;document.getElementById("install").hidden=false});document.getElementById("install").onclick=async()=>{if(deferredInstall){deferredInstall.prompt();await deferredInstall.userChoice;deferredInstall=null}};
+if("serviceWorker" in navigator)navigator.serviceWorker.register("./sw.js");
+</script></body></html><!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#24170f"><link rel="manifest" href="manifest.json"><title>Ancient Armies Chess II</title>
+<style>
+:root{--bg:#17130f;--panel:#292017;--gold:#c9a56b;--cream:#f0dfbd;--dark:#543b27;--light:#d9bb87;--accent:#8e3325}
+*{box-sizing:border-box}body{margin:0;background:radial-gradient(ellipse at top,#3b2b1b,#17130f 70%);color:var(--cream);font-family:system-ui,serif;min-height:100vh}
+main{max-width:1050px;margin:auto;padding:18px}.top{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}.brand h1{margin:0;color:var(--gold);letter-spacing:.08em;font-family:Georgia,serif}.brand p{margin:4px 0 12px;color:#b9a58a}
+.controls{display:flex;gap:8px;flex-wrap:wrap}.btn,select{background:#3a2a1c;color:var(--cream);border:1px solid #927347;border-radius:9px;padding:9px 12px;font-size:15px}.btn:hover{background:#57402b}.layout{display:grid;grid-template-columns:minmax(280px,680px) minmax(220px,1fr);gap:18px;margin-top:12px}.boardwrap{background:#211910;border:2px solid #9d7b47;padding:8px;border-radius:14px;box-shadow:0 12px 35px #0008}.board{display:grid;grid-template-columns:repeat(8,1fr;)}.board{grid-template-columns:repeat(8,1fr);aspect-ratio:1;overflow:hidden;border-radius:7px}
+.sq{position:relative;border:0;padding:0;aspect-ratio:1;display:grid;place-items:center;cursor:pointer;font-size:clamp(24px,6.7vw,64px);line-height:1}.sq.light{background:var(--light)}.sq.dark{background:var(--dark)}.sq.selected{box-shadow:inset 0 0 0 5px #e6c64e}.sq.target:after{content:"";position:absolute;width:23%;height:23%;border-radius:50%;background:#285c36aa}.sq.capture:after{content:"";position:absolute;inset:4px;border:4px solid #8e3325b9;border-radius:50%}.piece{filter:drop-shadow(1px 3px 1px #0007);transition:transform .15s}.sq:hover .piece{transform:translateY(-3px)}.white{color:#f8ebd2;text-shadow:0 2px 3px #352311,0 0 1px #111}.black{color:#21150d;text-shadow:0 1px 1px #d6b989}.coords{position:absolute;left:3px;top:2px;font-size:10px;color:#402e1d;opacity:.8}
+.sidebar{display:flex;flex-direction:column;gap:10px}.card{background:linear-gradient(135deg,#342519,#251a12);border:1px solid #715531;border-radius:12px;padding:13px}.card h2{font-size:17px;margin:0 0 9px;color:var(--gold)}#status{font-size:17px;min-height:28px}.history{max-height:260px;overflow:auto;white-space:pre-wrap;font-family:monospace;font-size:14px;color:#dfc9a6}.help{color:#b9a58a;font-size:13px;line-height:1.5}.row{display:flex;gap:7px;flex-wrap:wrap}.row button{flex:1}.foot{color:#8f7b62;text-align:center;font-size:12px;margin:12px}
+@keyframes battle{0%{transform:scale(1.1);filter:brightness(1.8)}100%{transform:scale(1);filter:brightness(1)}}.recent .piece{animation:battle .25s ease}
+@media(max-width:760px){main{padding:10px}.layout{grid-template-columns:1fr}.sidebar{display:grid;grid-template-columns:1fr 1fr}.historycard{grid-column:1/-1}.sq{font-size:clamp(27px,10vw,54px)}}
+
+/* Ancient Armies II battlefield upgrade */
+body{background:radial-gradient(ellipse at 50% 0%,#65472c 0,#2b1b10 42%,#100c09 100%)}
+.boardwrap{border:3px ridge #b58b4f;background:linear-gradient(135deg,#68472c,#25180f 30%,#6a492c);box-shadow:0 16px 38px #000a,inset 0 0 0 2px #24160d}
+.sq.light{background:linear-gradient(135deg,#ead8b3,#bd9862)}
+.sq.dark{background:linear-gradient(135deg,#69472d,#382316)}
+.sq{overflow:hidden}
+.sq .piece{filter:drop-shadow(1px 4px 2px #0009);transition:transform .18s,filter .18s}
+.sq:hover .piece{transform:translateY(-4px) scale(1.04);filter:drop-shadow(2px 7px 3px #000a)}
+@keyframes army-march{0%{transform:scale(.55) translateY(-15px);opacity:.25}70%{transform:scale(1.12)}100%{transform:scale(1);opacity:1}}
+@keyframes battle-strike{0%{filter:brightness(2.2);transform:scale(1.25)}100%{filter:brightness(1);transform:scale(1)}}
+.sq:has(circle[stroke="#166534"]) .piece{animation:army-march .25s ease-out}
+.card{background:linear-gradient(145deg,#3b281a,#21160f);border-color:#80603a;box-shadow:0 8px 20px #0005}
+.brand h1{color:#d4ad68;text-shadow:0 3px 8px #000;letter-spacing:.09em}
+.btn{background:linear-gradient(#543a25,#2d1d12);border-color:#a37d45}
+</style></head><body><main>
+<div class="top"><div class="brand"><h1>⚔ ANCIENT ARMIES II</h1><p>Command the legions. Claim the field.</p></div><div class="controls"><select id="mode"><option value="human">Two commanders</option><option value="cpu">Battle the computer</option></select><button class="btn" id="undo">↶ Undo</button><button class="btn" id="reset">⟲ New battle</button><button class="btn" id="install" hidden>⬇ Install</button></div></div>
+<div class="layout"><div class="boardwrap"><div id="board" class="board" aria-label="Chess board"></div></div><aside class="sidebar">
+<div class="card"><h2>Battle status</h2><div id="status">White to move</div></div>
+<div class="card"><h2>Army legend</h2><div class="help">♔ / ♚ Commander · ♕ / ♛ Queen<br>♖ / ♜ Fortress · ♗ / ♝ Sage<br>♘ / ♞ Cavalry · ♙ / ♟ Infantry</div></div>
+<div class="card historycard"><h2>Battle record</h2><div id="history" class="history">The armies await your command.</div></div>
+<div class="card"><h2>Controls</h2><div class="help">Select a piece, then a highlighted square. Tap a pawn on its final rank to promote. Undo rewinds one move. Sound can be toggled.</div><div class="row"><button class="btn" id="sound">Sound: off</button><button class="btn" id="flip">Flip board</button></div></div></aside></div>
+<div class="foot">Offline-ready web app · Install from Chrome's address bar/menu when hosted securely</div></main>
+<script>
+const glyph={K:"♔",Q:"♕",R:"♖",B:"♗",N:"♘",P:"♙",k:"♚",q:"♛",r:"♜",b:"♝",n:"♞",p:"♟"};
+let board=[],turn="w",rights="KQkq",ep=null,half=0,full=1,selected=null,targets=[],history=[],records=[],flip=false,sound=false,computer=false;
+const initial="rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR";
+function reset(){board=initial.split("/").flatMap(row=>{let out=[];for(const c of row){if(+c)out.push(...Array(+c).fill(null));else out.push(c)}return out});turn="w";rights="KQkq";ep=null;half=0;full=1;selected=null;targets=[];history=[];records=[];render();status();}
+function sqName(i){return "abcdefgh"[i%8]+(8-Math.floor(i/8))}
+function index(s){return (8-+s[1])*8+"abcdefgh".indexOf(s[0])}
+function color(p){return p?(p===p.toUpperCase()?"w":"b"):null}
+function clone(){return {b:board.slice(),t:turn,r:rights,e:ep,h:half,f:full}}
+function restore(s){board=s.b.slice();turn=s.t;rights=s.r;ep=s.e;half=s.h;full=s.f}
+function attacked(b,idx,by){
+ const f=idx%8,r=Math.floor(idx/8);
+ for(let rr=0;rr<8;rr++)for(let ff=0;ff<8;ff++){let p=b[rr*8+ff];if(!p||color(p)!==by)continue;let typ=p.toLowerCase(),dr=r-rr,df=f-ff;
+ if(typ==="p"&&dr===(by==="w"?-1:1)&&Math.abs(df)===1)return true;
+ if(typ==="n"&&((Math.abs(dr)===2&&Math.abs(df)===1)||(Math.abs(dr)===1&&Math.abs(df)===2)))return true;
+ if(typ==="k"&&Math.max(Math.abs(dr),Math.abs(df))===1)return true;
+ if(["b","r","q"].includes(typ)){let diagonal=Math.abs(dr)===Math.abs(df),straight=dr===0||df===0;if((typ==="b"&&!diagonal)||(typ==="r"&&!straight)||(typ==="q"&&!(diagonal||straight))||(!dr&&!df))continue;let sr=Math.sign(dr),sf=Math.sign(df),y=rr+sr,x=ff+sf,blocked=false;while(y!==r||x!==f){if(b[y*8+x]){blocked=true;break}y+=sr;x+=sf}if(!blocked)return true}
+ }return false
+}
+function king(b,c){return b.findIndex(p=>p===(c==="w"?"K":"k"))}
+function inCheck(b,c){return attacked(b,king(b,c),c==="w"?"b":"w")}
+function pseudo(s){let out=[],b=s.b,c=s.t;const add=(from,to,prom=null,extra={})=>{if(b[to]&&color(b[to])===c)return;if(b[to]&&b[to].toLowerCase()==="k")return;out.push({from,to,prom,...extra})};
+ for(let i=0;i<64;i++){let p=b[i];if(!p||color(p)!==c)continue;let typ=p.toLowerCase(),r=i>>3,f=i%8;
+ if(typ==="p"){let d=c==="w"?-1:1,rr=r+d;if(rr>=0&&rr<8&&!b[rr*8+f]){if(rr===0||rr===7){for(let q of "qrbn")add(i,rr*8+f,q)}else add(i,rr*8+f);let start=c==="w"?6:1,rr2=r+2*d;if(r===start&&!b[rr2*8+f])add(i,rr2*8+f,null,{double:true})}
+ for(let df of [-1,1]){let nf=f+df,nr=r+d;if(nf<0||nf>7||nr<0||nr>7)continue;let dest=nr*8+nf;if(b[dest]&&color(b[dest])!==c){if(nr===0||nr===7){for(let q of "qrbn")add(i,dest,q)}else add(i,dest)}else if(dest===s.e)add(i,dest,null,{ep:true})}
+ }else{let steps=typ==="n"?[[2,1],[2,-1],[-2,1],[-2,-1],[1,2],[1,-2],[-1,2],[-1,-2]]:typ==="k"?[[1,0],[-1,0],[0,1],[0,-1],[1,1],[1,-1],[-1,1],[-1,-1]]:typ==="b"?[[1,1],[1,-1],[-1,1],[-1,-1]]:typ==="r"?[[1,0],[-1,0],[0,1],[0,-1]]:[[1,0],[-1,0],[0,1],[0,-1],[1,1],[1,-1],[-1,1],[-1,-1]];
+ for(let [dr,df] of steps){let nr=r+dr,nf=f+df;while(nr>=0&&nr<8&&nf>=0&&nf<8){add(i,nr*8+nf);if(typ==="k"||typ==="n"||b[nr*8+nf])break;nr+=dr;nf+=df}}
+ if(typ==="k"&&r===(c==="w"?7:0)&&f===4&&!inCheck(b,c)){let enemy=c==="w"?"b":"w";if(s.r.includes(c==="w"?"K":"k")&&!b[i+1]&&!b[i+2]&&b[i+3]===(c==="w"?"R":"r")&&!attacked(b,i+1,enemy)&&!attacked(b,i+2,enemy))add(i,i+2,null,{castle:"k"});if(s.r.includes(c==="w"?"Q":"q")&&!b[i-1]&&!b[i-2]&&!b[i-3]&&b[i-4]===(c==="w"?"R":"r")&&!attacked(b,i-1,enemy)&&!attacked(b,i-2,enemy))add(i,i-2,null,{castle:"q"})}
+ }}
+ return out}
+function legal(s){return pseudo(s).filter(m=>{let b=s.b.slice(),p=b[m.from];b[m.to]=m.prom?(s.t==="w"?m.prom.toUpperCase():m.prom):p;b[m.from]=null;if(m.ep)b[m.to+(s.t==="w"?8:-8)]=null;if(m.castle){let rr=m.from>>3,rookfrom=m.castle==="k"?m.from+3:m.from-4,rookto=m.castle==="k"?m.from+1:m.from-1;b[rookto]=b[rookfrom];b[rookfrom]=null}return !inCheck(b,s.t)})}
+function make(m){let prev=clone(),p=board[m.from],cap=board[m.to];history.push(prev);board[m.to]=m.prom?(turn==="w"?m.prom.toUpperCase():m.prom):p;board[m.from]=null;if(m.ep){board[m.to+(turn==="w"?8:-8)]=null;cap=turn==="w"?"p":"P"}if(m.castle){let rf=m.castle==="k"?m.from+3:m.from-4,rt=m.castle==="k"?m.from+1:m.from-1;board[rt]=board[rf];board[rf]=null}
+ if(p==="K")rights=rights.replace(/[KQ]/g,"");if(p==="k")rights=rights.replace(/[kq]/g,"");const rookRights={63:"K",56:"Q",7:"k",0:"q"};if(p.toLowerCase()==="r")rights=rights.replace(rookRights[m.from]||"","");if(cap&&cap.toLowerCase()==="r")rights=rights.replace(rookRights[m.to]||"","");ep=m.double?((m.from+m.to)/2):null;half=p.toLowerCase()==="p"||cap?0:half+1;if(turn==="b")full++;turn=turn==="w"?"b":"w";records.push((full-(turn==="w"?1:0))+(prev.t==="w"?". ":"... ")+notation(prev,m));selected=null;targets=[];render();status();if(sound)beep();if(computer&&turn==="b"&&!terminal())setTimeout(cpuMove,450)}
+function notation(s,m){let p=s.b[m.from],cap=s.b[m.to]||m.ep,txt=m.castle?(m.castle==="k"?"O-O":"O-O-O"):(p.toLowerCase()==="p"?(cap?sqName(m.from)[0]+"x":"")+sqName(m.to):p.toUpperCase()+(cap?"x":"")+sqName(m.to))+(m.prom?"="+m.prom.toUpperCase():"");let next=clone(),moves=legal(next);if(inCheck(board,turn))txt+=moves.length?" +":" #";return txt}
+function terminal(){let ms=legal(clone());return ms.length===0||half>=100}
+function status(){let ms=legal(clone()),check=inCheck(board,turn),txt;if(!ms.length)txt=check?"CHECKMATE — "+(turn==="w"?"Black":"White")+" wins!":"Draw — stalemate";else if(half>=100)txt="Draw claim available — 50 move rule";else txt=(turn==="w"?"White":"Black")+" to move"+(check?" — CHECK":"");document.getElementById("status").textContent=txt;document.getElementById("history").textContent=records.length?records.join("  "):"The armies await your command."}
+function render(){let el=document.getElementById("board");el.innerHTML="";let moves=selected===null?[]:legal(clone()).filter(m=>m.from===selected);targets=moves.map(m=>m.to);for(let n=0;n<64;n++){let i=flip?63-n:n,cell=document.createElement("button");cell.className="sq "+(((i>>3)+(i&7))%2?"dark":"light");if(i===selected)cell.classList.add("selected");if(targets.includes(i))cell.classList.add(board[i]?"capture":"target");let p=board[i];if(p){let sp=document.createElement("span");sp.className="piece "+(color(p)==="w"?"white":"black");sp.textContent=glyph[p];cell.append(sp)}let co=document.createElement("span");co.className="coords";co.textContent=(i%8===0?8-(i>>3):"")+(i>>3===7?"abcdefgh"[i%8]:"");cell.append(co);cell.onclick=()=>click(i);el.append(cell)}}
+function click(i){if(computer&&turn==="b")return;let ms=legal(clone());if(selected!==null){let opts=ms.filter(m=>m.from===selected&&m.to===i);if(opts.length){let m=opts[0];if(opts.length>1){let choice=prompt("Promote to: Q, R, B, or N","Q");m=opts.find(x=>x.prom===(choice||"Q").toLowerCase())||opts[0]}make(m);return}}
+ if(board[i]&&color(board[i])===turn){selected=i;render()}else{selected=null;render()}}
+function cpuMove(){if(turn!=="b"||!computer)return;let ms=legal(clone());if(!ms.length)return;let scored=ms.map(m=>({m,s:(board[m.to]?({p:1,n:3,b:3,r:5,q:9,k:99}[board[m.to].toLowerCase()]||0):0)+(m.prom?8:0)+Math.random()*1.8})).sort((a,b)=>b.s-a.s);make(scored[0].m)}
+function beep(){try{let a=new AudioContext(),o=a.createOscillator(),g=a.createGain();o.connect(g);g.connect(a.destination);o.frequency.value=220;g.gain.value=.04;o.start();o.stop(a.currentTime+.06)}catch{}}
+document.getElementById("reset").onclick=reset;document.getElementById("undo").onclick=()=>{if(history.length){restore(history.pop());records.pop();selected=null;render();status();if(computer&&turn==="w"&&history.length) {}}};document.getElementById("mode").onchange=e=>{computer=e.target.value==="cpu";reset()};document.getElementById("sound").onclick=e=>{sound=!sound;e.target.textContent="Sound: "+(sound?"on":"off")};document.getElementById("flip").onclick=()=>{flip=!flip;render()};reset();
+let deferredInstall;window.addEventListener("beforeinstallprompt",e=>{e.preventDefault();deferredInstall=e;document.getElementById("install").hidden=false});document.getElementById("install").onclick=async()=>{if(deferredInstall){deferredInstall.prompt();await deferredInstall.userChoice;deferredInstall=null}};
+if("serviceWorker" in navigator)navigator.serviceWorker.register("./sw.js");
+</script></body></html><!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#24170f"><link rel="manifest" href="manifest.json"><title>Ancient Armies Chess II</title>
+<style>
+:root{--bg:#17130f;--panel:#292017;--gold:#c9a56b;--cream:#f0dfbd;--dark:#543b27;--light:#d9bb87;--accent:#8e3325}
+*{box-sizing:border-box}body{margin:0;background:radial-gradient(ellipse at top,#3b2b1b,#17130f 70%);color:var(--cream);font-family:system-ui,serif;min-height:100vh}
+main{max-width:1050px;margin:auto;padding:18px}.top{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}.brand h1{margin:0;color:var(--gold);letter-spacing:.08em;font-family:Georgia,serif}.brand p{margin:4px 0 12px;color:#b9a58a}
+.controls{display:flex;gap:8px;flex-wrap:wrap}.btn,select{background:#3a2a1c;color:var(--cream);border:1px solid #927347;border-radius:9px;padding:9px 12px;font-size:15px}.btn:hover{background:#57402b}.layout{display:grid;grid-template-columns:minmax(280px,680px) minmax(220px,1fr);gap:18px;margin-top:12px}.boardwrap{background:#211910;border:2px solid #9d7b47;padding:8px;border-radius:14px;box-shadow:0 12px 35px #0008}.board{display:grid;grid-template-columns:repeat(8,1fr;)}.board{grid-template-columns:repeat(8,1fr);aspect-ratio:1;overflow:hidden;border-radius:7px}
+.sq{position:relative;border:0;padding:0;aspect-ratio:1;display:grid;place-items:center;cursor:pointer;font-size:clamp(24px,6.7vw,64px);line-height:1}.sq.light{background:var(--light)}.sq.dark{background:var(--dark)}.sq.selected{box-shadow:inset 0 0 0 5px #e6c64e}.sq.target:after{content:"";position:absolute;width:23%;height:23%;border-radius:50%;background:#285c36aa}.sq.capture:after{content:"";position:absolute;inset:4px;border:4px solid #8e3325b9;border-radius:50%}.piece{filter:drop-shadow(1px 3px 1px #0007);transition:transform .15s}.sq:hover .piece{transform:translateY(-3px)}.white{color:#f8ebd2;text-shadow:0 2px 3px #352311,0 0 1px #111}.black{color:#21150d;text-shadow:0 1px 1px #d6b989}.coords{position:absolute;left:3px;top:2px;font-size:10px;color:#402e1d;opacity:.8}
+.sidebar{display:flex;flex-direction:column;gap:10px}.card{background:linear-gradient(135deg,#342519,#251a12);border:1px solid #715531;border-radius:12px;padding:13px}.card h2{font-size:17px;margin:0 0 9px;color:var(--gold)}#status{font-size:17px;min-height:28px}.history{max-height:260px;overflow:auto;white-space:pre-wrap;font-family:monospace;font-size:14px;color:#dfc9a6}.help{color:#b9a58a;font-size:13px;line-height:1.5}.row{display:flex;gap:7px;flex-wrap:wrap}.row button{flex:1}.foot{color:#8f7b62;text-align:center;font-size:12px;margin:12px}
+@keyframes battle{0%{transform:scale(1.1);filter:brightness(1.8)}100%{transform:scale(1);filter:brightness(1)}}.recent .piece{animation:battle .25s ease}
+@media(max-width:760px){main{padding:10px}.layout{grid-template-columns:1fr}.sidebar{display:grid;grid-template-columns:1fr 1fr}.historycard{grid-column:1/-1}.sq{font-size:clamp(27px,10vw,54px)}}
+
+/* Ancient Armies II battlefield upgrade */
+body{background:radial-gradient(ellipse at 50% 0%,#65472c 0,#2b1b10 42%,#100c09 100%)}
+.boardwrap{border:3px ridge #b58b4f;background:linear-gradient(135deg,#68472c,#25180f 30%,#6a492c);box-shadow:0 16px 38px #000a,inset 0 0 0 2px #24160d}
+.sq.light{background:linear-gradient(135deg,#ead8b3,#bd9862)}
+.sq.dark{background:linear-gradient(135deg,#69472d,#382316)}
+.sq{overflow:hidden}
+.sq .piece{filter:drop-shadow(1px 4px 2px #0009);transition:transform .18s,filter .18s}
+.sq:hover .piece{transform:translateY(-4px) scale(1.04);filter:drop-shadow(2px 7px 3px #000a)}
+@keyframes army-march{0%{transform:scale(.55) translateY(-15px);opacity:.25}70%{transform:scale(1.12)}100%{transform:scale(1);opacity:1}}
+@keyframes battle-strike{0%{filter:brightness(2.2);transform:scale(1.25)}100%{filter:brightness(1);transform:scale(1)}}
+.sq:has(circle[stroke="#166534"]) .piece{animation:army-march .25s ease-out}
+.card{background:linear-gradient(145deg,#3b281a,#21160f);border-color:#80603a;box-shadow:0 8px 20px #0005}
+.brand h1{color:#d4ad68;text-shadow:0 3px 8px #000;letter-spacing:.09em}
+.btn{background:linear-gradient(#543a25,#2d1d12);border-color:#a37d45}
+</style></head><body><main>
+<div class="top"><div class="brand"><h1>⚔ ANCIENT ARMIES II</h1><p>Command the legions. Claim the field.</p></div><div class="controls"><select id="mode"><option value="human">Two commanders</option><option value="cpu">Battle the computer</option></select><button class="btn" id="undo">↶ Undo</button><button class="btn" id="reset">⟲ New battle</button><button class="btn" id="install" hidden>⬇ Install</button></div></div>
+<div class="layout"><div class="boardwrap"><div id="board" class="board" aria-label="Chess board"></div></div><aside class="sidebar">
+<div class="card"><h2>Battle status</h2><div id="status">White to move</div></div>
+<div class="card"><h2>Army legend</h2><div class="help">♔ / ♚ Commander · ♕ / ♛ Queen<br>♖ / ♜ Fortress · ♗ / ♝ Sage<br>♘ / ♞ Cavalry · ♙ / ♟ Infantry</div></div>
+<div class="card historycard"><h2>Battle record</h2><div id="history" class="history">The armies await your command.</div></div>
+<div class="card"><h2>Controls</h2><div class="help">Select a piece, then a highlighted square. Tap a pawn on its final rank to promote. Undo rewinds one move. Sound can be toggled.</div><div class="row"><button class="btn" id="sound">Sound: off</button><button class="btn" id="flip">Flip board</button></div></div></aside></div>
+<div class="foot">Offline-ready web app · Install from Chrome's address bar/menu when hosted securely</div></main>
+<script>
+const glyph={K:"♔",Q:"♕",R:"♖",B:"♗",N:"♘",P:"♙",k:"♚",q:"♛",r:"♜",b:"♝",n:"♞",p:"♟"};
+let board=[],turn="w",rights="KQkq",ep=null,half=0,full=1,selected=null,targets=[],history=[],records=[],flip=false,sound=false,computer=false;
+const initial="rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR";
+function reset(){board=initial.split("/").flatMap(row=>{let out=[];for(const c of row){if(+c)out.push(...Array(+c).fill(null));else out.push(c)}return out});turn="w";rights="KQkq";ep=null;half=0;full=1;selected=null;targets=[];history=[];records=[];render();status();}
+function sqName(i){return "abcdefgh"[i%8]+(8-Math.floor(i/8))}
+function index(s){return (8-+s[1])*8+"abcdefgh".indexOf(s[0])}
+function color(p){return p?(p===p.toUpperCase()?"w":"b"):null}
+function clone(){return {b:board.slice(),t:turn,r:rights,e:ep,h:half,f:full}}
+function restore(s){board=s.b.slice();turn=s.t;rights=s.r;ep=s.e;half=s.h;full=s.f}
+function attacked(b,idx,by){
+ const f=idx%8,r=Math.floor(idx/8);
+ for(let rr=0;rr<8;rr++)for(let ff=0;ff<8;ff++){let p=b[rr*8+ff];if(!p||color(p)!==by)continue;let typ=p.toLowerCase(),dr=r-rr,df=f-ff;
+ if(typ==="p"&&dr===(by==="w"?-1:1)&&Math.abs(df)===1)return true;
+ if(typ==="n"&&((Math.abs(dr)===2&&Math.abs(df)===1)||(Math.abs(dr)===1&&Math.abs(df)===2)))return true;
+ if(typ==="k"&&Math.max(Math.abs(dr),Math.abs(df))===1)return true;
+ if(["b","r","q"].includes(typ)){let diagonal=Math.abs(dr)===Math.abs(df),straight=dr===0||df===0;if((typ==="b"&&!diagonal)||(typ==="r"&&!straight)||(typ==="q"&&!(diagonal||straight))||(!dr&&!df))continue;let sr=Math.sign(dr),sf=Math.sign(df),y=rr+sr,x=ff+sf,blocked=false;while(y!==r||x!==f){if(b[y*8+x]){blocked=true;break}y+=sr;x+=sf}if(!blocked)return true}
+ }return false
+}
+function king(b,c){return b.findIndex(p=>p===(c==="w"?"K":"k"))}
+function inCheck(b,c){return attacked(b,king(b,c),c==="w"?"b":"w")}
+function pseudo(s){let out=[],b=s.b,c=s.t;const add=(from,to,prom=null,extra={})=>{if(b[to]&&color(b[to])===c)return;if(b[to]&&b[to].toLowerCase()==="k")return;out.push({from,to,prom,...extra})};
+ for(let i=0;i<64;i++){let p=b[i];if(!p||color(p)!==c)continue;let typ=p.toLowerCase(),r=i>>3,f=i%8;
+ if(typ==="p"){let d=c==="w"?-1:1,rr=r+d;if(rr>=0&&rr<8&&!b[rr*8+f]){if(rr===0||rr===7){for(let q of "qrbn")add(i,rr*8+f,q)}else add(i,rr*8+f);let start=c==="w"?6:1,rr2=r+2*d;if(r===start&&!b[rr2*8+f])add(i,rr2*8+f,null,{double:true})}
+ for(let df of [-1,1]){let nf=f+df,nr=r+d;if(nf<0||nf>7||nr<0||nr>7)continue;let dest=nr*8+nf;if(b[dest]&&color(b[dest])!==c){if(nr===0||nr===7){for(let q of "qrbn")add(i,dest,q)}else add(i,dest)}else if(dest===s.e)add(i,dest,null,{ep:true})}
+ }else{let steps=typ==="n"?[[2,1],[2,-1],[-2,1],[-2,-1],[1,2],[1,-2],[-1,2],[-1,-2]]:typ==="k"?[[1,0],[-1,0],[0,1],[0,-1],[1,1],[1,-1],[-1,1],[-1,-1]]:typ==="b"?[[1,1],[1,-1],[-1,1],[-1,-1]]:typ==="r"?[[1,0],[-1,0],[0,1],[0,-1]]:[[1,0],[-1,0],[0,1],[0,-1],[1,1],[1,-1],[-1,1],[-1,-1]];
+ for(let [dr,df] of steps){let nr=r+dr,nf=f+df;while(nr>=0&&nr<8&&nf>=0&&nf<8){add(i,nr*8+nf);if(typ==="k"||typ==="n"||b[nr*8+nf])break;nr+=dr;nf+=df}}
+ if(typ==="k"&&r===(c==="w"?7:0)&&f===4&&!inCheck(b,c)){let enemy=c==="w"?"b":"w";if(s.r.includes(c==="w"?"K":"k")&&!b[i+1]&&!b[i+2]&&b[i+3]===(c==="w"?"R":"r")&&!attacked(b,i+1,enemy)&&!attacked(b,i+2,enemy))add(i,i+2,null,{castle:"k"});if(s.r.includes(c==="w"?"Q":"q")&&!b[i-1]&&!b[i-2]&&!b[i-3]&&b[i-4]===(c==="w"?"R":"r")&&!attacked(b,i-1,enemy)&&!attacked(b,i-2,enemy))add(i,i-2,null,{castle:"q"})}
+ }}
+ return out}
+function legal(s){return pseudo(s).filter(m=>{let b=s.b.slice(),p=b[m.from];b[m.to]=m.prom?(s.t==="w"?m.prom.toUpperCase():m.prom):p;b[m.from]=null;if(m.ep)b[m.to+(s.t==="w"?8:-8)]=null;if(m.castle){let rr=m.from>>3,rookfrom=m.castle==="k"?m.from+3:m.from-4,rookto=m.castle==="k"?m.from+1:m.from-1;b[rookto]=b[rookfrom];b[rookfrom]=null}return !inCheck(b,s.t)})}
+function make(m){let prev=clone(),p=board[m.from],cap=board[m.to];history.push(prev);board[m.to]=m.prom?(turn==="w"?m.prom.toUpperCase():m.prom):p;board[m.from]=null;if(m.ep){board[m.to+(turn==="w"?8:-8)]=null;cap=turn==="w"?"p":"P"}if(m.castle){let rf=m.castle==="k"?m.from+3:m.from-4,rt=m.castle==="k"?m.from+1:m.from-1;board[rt]=board[rf];board[rf]=null}
+ if(p==="K")rights=rights.replace(/[KQ]/g,"");if(p==="k")rights=rights.replace(/[kq]/g,"");const rookRights={63:"K",56:"Q",7:"k",0:"q"};if(p.toLowerCase()==="r")rights=rights.replace(rookRights[m.from]||"","");if(cap&&cap.toLowerCase()==="r")rights=rights.replace(rookRights[m.to]||"","");ep=m.double?((m.from+m.to)/2):null;half=p.toLowerCase()==="p"||cap?0:half+1;if(turn==="b")full++;turn=turn==="w"?"b":"w";records.push((full-(turn==="w"?1:0))+(prev.t==="w"?". ":"... ")+notation(prev,m));selected=null;targets=[];render();status();if(sound)beep();if(computer&&turn==="b"&&!terminal())setTimeout(cpuMove,450)}
+function notation(s,m){let p=s.b[m.from],cap=s.b[m.to]||m.ep,txt=m.castle?(m.castle==="k"?"O-O":"O-O-O"):(p.toLowerCase()==="p"?(cap?sqName(m.from)[0]+"x":"")+sqName(m.to):p.toUpperCase()+(cap?"x":"")+sqName(m.to))+(m.prom?"="+m.prom.toUpperCase():"");let next=clone(),moves=legal(next);if(inCheck(board,turn))txt+=moves.length?" +":" #";return txt}
+function terminal(){let ms=legal(clone());return ms.length===0||half>=100}
+function status(){let ms=legal(clone()),check=inCheck(board,turn),txt;if(!ms.length)txt=check?"CHECKMATE — "+(turn==="w"?"Black":"White")+" wins!":"Draw — stalemate";else if(half>=100)txt="Draw claim available — 50 move rule";else txt=(turn==="w"?"White":"Black")+" to move"+(check?" — CHECK":"");document.getElementById("status").textContent=txt;document.getElementById("history").textContent=records.length?records.join("  "):"The armies await your command."}
+function render(){let el=document.getElementById("board");el.innerHTML="";let moves=selected===null?[]:legal(clone()).filter(m=>m.from===selected);targets=moves.map(m=>m.to);for(let n=0;n<64;n++){let i=flip?63-n:n,cell=document.createElement("button");cell.className="sq "+(((i>>3)+(i&7))%2?"dark":"light");if(i===selected)cell.classList.add("selected");if(targets.includes(i))cell.classList.add(board[i]?"capture":"target");let p=board[i];if(p){let sp=document.createElement("span");sp.className="piece "+(color(p)==="w"?"white":"black");sp.textContent=glyph[p];cell.append(sp)}let co=document.createElement("span");co.className="coords";co.textContent=(i%8===0?8-(i>>3):"")+(i>>3===7?"abcdefgh"[i%8]:"");cell.append(co);cell.onclick=()=>click(i);el.append(cell)}}
+function click(i){if(computer&&turn==="b")return;let ms=legal(clone());if(selected!==null){let opts=ms.filter(m=>m.from===selected&&m.to===i);if(opts.length){let m=opts[0];if(opts.length>1){let choice=prompt("Promote to: Q, R, B, or N","Q");m=opts.find(x=>x.prom===(choice||"Q").toLowerCase())||opts[0]}make(m);return}}
+ if(board[i]&&color(board[i])===turn){selected=i;render()}else{selected=null;render()}}
+function cpuMove(){if(turn!=="b"||!computer)return;let ms=legal(clone());if(!ms.length)return;let scored=ms.map(m=>({m,s:(board[m.to]?({p:1,n:3,b:3,r:5,q:9,k:99}[board[m.to].toLowerCase()]||0):0)+(m.prom?8:0)+Math.random()*1.8})).sort((a,b)=>b.s-a.s);make(scored[0].m)}
+function beep(){try{let a=new AudioContext(),o=a.createOscillator(),g=a.createGain();o.connect(g);g.connect(a.destination);o.frequency.value=220;g.gain.value=.04;o.start();o.stop(a.currentTime+.06)}catch{}}
+document.getElementById("reset").onclick=reset;document.getElementById("undo").onclick=()=>{if(history.length){restore(history.pop());records.pop();selected=null;render();status();if(computer&&turn==="w"&&history.length) {}}};document.getElementById("mode").onchange=e=>{computer=e.target.value==="cpu";reset()};document.getElementById("sound").onclick=e=>{sound=!sound;e.target.textContent="Sound: "+(sound?"on":"off")};document.getElementById("flip").onclick=()=>{flip=!flip;render()};reset();
+let deferredInstall;window.addEventListener("beforeinstallprompt",e=>{e.preventDefault();deferredInstall=e;document.getElementById("install").hidden=false});document.getElementById("install").onclick=async()=>{if(deferredInstall){deferredInstall.prompt();await deferredInstall.userChoice;deferredInstall=null}};
+if("serviceWorker" in navigator)navigator.serviceWorker.register("./sw.js");
 </script></body></html>
