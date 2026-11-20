@@ -1,14 +1,12 @@
-ANCIENT ARMIES CHESS — Chromebook install
+ANCIENT ARMIES CHESS II — Chromebook upgrade
 
-Files: index.html, manifest.json, sw.js, icon.svg
+This package refreshes the original chess game with a richer ancient-battlefield visual theme, deeper board and frame styling, and animated piece hover/movement presentation. It retains the original game controls and rules.
 
-The app is a PWA (Progressive Web App) and can be installed on a Chromebook when served over HTTPS (or localhost).
-Easiest hosting:
-1. Open github.com and create a repository named ancient-armies-chess.
-2. Upload these four files to the repository root.
-3. Repository Settings → Pages → deploy from branch (main / root).
-4. Wait for the Pages URL, open it in Chrome on your Chromebook.
-5. Chrome menu or install icon → Install Ancient Armies Chess.
-6. Once opened online one time, it caches files and works offline.
-
-For Chromebook: open Chrome menu ⋮ → Cast, save? PWA installation availability depends on secure hosting. This ZIP itself is not an APK; Chromebooks can install web apps directly.
+To publish the upgrade:
+1. Open your existing GitHub repository: ancient-armies-chess.
+2. Choose Add file → Upload files.
+3. Extract this ZIP on your Chromebook.
+4. Upload the four files index.html, manifest.json, sw.js, and icon.svg, replacing the existing files.
+5. Commit changes.
+6. Wait 2–5 minutes, then reload your GitHub Pages site. If the old version remains, press Ctrl+Shift+R.
+7. Close and reopen the installed app to receive the updated offline cache.

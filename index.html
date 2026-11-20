@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#24170f"><link rel="manifest" href="manifest.json"><title>Ancient Armies Chess</title>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#24170f"><link rel="manifest" href="manifest.json"><title>Ancient Armies Chess II</title>
 <style>
 :root{--bg:#17130f;--panel:#292017;--gold:#c9a56b;--cream:#f0dfbd;--dark:#543b27;--light:#d9bb87;--accent:#8e3325}
 *{box-sizing:border-box}body{margin:0;background:radial-gradient(ellipse at top,#3b2b1b,#17130f 70%);color:var(--cream);font-family:system-ui,serif;min-height:100vh}
@@ -9,8 +9,23 @@ main{max-width:1050px;margin:auto;padding:18px}.top{display:flex;justify-content
 .sidebar{display:flex;flex-direction:column;gap:10px}.card{background:linear-gradient(135deg,#342519,#251a12);border:1px solid #715531;border-radius:12px;padding:13px}.card h2{font-size:17px;margin:0 0 9px;color:var(--gold)}#status{font-size:17px;min-height:28px}.history{max-height:260px;overflow:auto;white-space:pre-wrap;font-family:monospace;font-size:14px;color:#dfc9a6}.help{color:#b9a58a;font-size:13px;line-height:1.5}.row{display:flex;gap:7px;flex-wrap:wrap}.row button{flex:1}.foot{color:#8f7b62;text-align:center;font-size:12px;margin:12px}
 @keyframes battle{0%{transform:scale(1.1);filter:brightness(1.8)}100%{transform:scale(1);filter:brightness(1)}}.recent .piece{animation:battle .25s ease}
 @media(max-width:760px){main{padding:10px}.layout{grid-template-columns:1fr}.sidebar{display:grid;grid-template-columns:1fr 1fr}.historycard{grid-column:1/-1}.sq{font-size:clamp(27px,10vw,54px)}}
+
+/* Ancient Armies II battlefield upgrade */
+body{background:radial-gradient(ellipse at 50% 0%,#65472c 0,#2b1b10 42%,#100c09 100%)}
+.boardwrap{border:3px ridge #b58b4f;background:linear-gradient(135deg,#68472c,#25180f 30%,#6a492c);box-shadow:0 16px 38px #000a,inset 0 0 0 2px #24160d}
+.sq.light{background:linear-gradient(135deg,#ead8b3,#bd9862)}
+.sq.dark{background:linear-gradient(135deg,#69472d,#382316)}
+.sq{overflow:hidden}
+.sq .piece{filter:drop-shadow(1px 4px 2px #0009);transition:transform .18s,filter .18s}
+.sq:hover .piece{transform:translateY(-4px) scale(1.04);filter:drop-shadow(2px 7px 3px #000a)}
+@keyframes army-march{0%{transform:scale(.55) translateY(-15px);opacity:.25}70%{transform:scale(1.12)}100%{transform:scale(1);opacity:1}}
+@keyframes battle-strike{0%{filter:brightness(2.2);transform:scale(1.25)}100%{filter:brightness(1);transform:scale(1)}}
+.sq:has(circle[stroke="#166534"]) .piece{animation:army-march .25s ease-out}
+.card{background:linear-gradient(145deg,#3b281a,#21160f);border-color:#80603a;box-shadow:0 8px 20px #0005}
+.brand h1{color:#d4ad68;text-shadow:0 3px 8px #000;letter-spacing:.09em}
+.btn{background:linear-gradient(#543a25,#2d1d12);border-color:#a37d45}
 </style></head><body><main>
-<div class="top"><div class="brand"><h1>⚔ ANCIENT ARMIES</h1><p>Chess across the ages</p></div><div class="controls"><select id="mode"><option value="human">Two commanders</option><option value="cpu">Battle the computer</option></select><button class="btn" id="undo">↶ Undo</button><button class="btn" id="reset">⟲ New battle</button><button class="btn" id="install" hidden>⬇ Install</button></div></div>
+<div class="top"><div class="brand"><h1>⚔ ANCIENT ARMIES II</h1><p>Command the legions. Claim the field.</p></div><div class="controls"><select id="mode"><option value="human">Two commanders</option><option value="cpu">Battle the computer</option></select><button class="btn" id="undo">↶ Undo</button><button class="btn" id="reset">⟲ New battle</button><button class="btn" id="install" hidden>⬇ Install</button></div></div>
 <div class="layout"><div class="boardwrap"><div id="board" class="board" aria-label="Chess board"></div></div><aside class="sidebar">
 <div class="card"><h2>Battle status</h2><div id="status">White to move</div></div>
 <div class="card"><h2>Army legend</h2><div class="help">♔ / ♚ Commander · ♕ / ♛ Queen<br>♖ / ♜ Fortress · ♗ / ♝ Sage<br>♘ / ♞ Cavalry · ♙ / ♟ Infantry</div></div>
